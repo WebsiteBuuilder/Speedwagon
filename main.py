@@ -47,6 +47,25 @@ def start_health_server():
     except Exception as e:
         print(f"Health server error: {e}")
 
+def start_health_server_sync():
+    """Start health server and wait for it to be ready"""
+    try:
+        port = int(os.getenv('PORT', 8080))
+        server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+        print(f"Health check server starting on port {port}")
+        
+        # Start server in background thread
+        health_thread = threading.Thread(target=server.serve_forever, daemon=True)
+        health_thread.start()
+        
+        # Give server time to start
+        time.sleep(2)
+        print(f"Health check server ready on port {port}")
+        return True
+    except Exception as e:
+        print(f"Health server error: {e}")
+        return False
+
 # Load custom commands
 def load_custom_commands():
     try:
@@ -307,14 +326,27 @@ async def on_command_error(ctx, error):
 if __name__ == "__main__":
     print("Starting Speedwagon Discord bot...")
     
-    # Start health check server immediately
-    health_thread = threading.Thread(target=start_health_server, daemon=True)
-    health_thread.start()
+    # Check if DISCORD_TOKEN exists
+    token = os.getenv('DISCORD_TOKEN')
+    if not token:
+        print("❌ ERROR: DISCORD_TOKEN environment variable not found!")
+        print("Please set DISCORD_TOKEN in Railway variables")
+        exit(1)
     
-    # Give health server a moment to start
-    time.sleep(1)
-    print("Health check server started")
+    print(f"✅ Discord token found (length: {len(token)})")
+    
+    # Start health check server and wait for it to be ready
+    print("Starting health check server...")
+    if start_health_server_sync():
+        print("✅ Health check server is ready")
+    else:
+        print("❌ Failed to start health check server")
+        print("Bot will continue but health checks may fail")
     
     # Start the bot
     print("Connecting to Discord...")
-    bot.run(os.getenv('DISCORD_TOKEN'))
+    try:
+        bot.run(token)
+    except Exception as e:
+        print(f"❌ Failed to start bot: {e}")
+        exit(1)
