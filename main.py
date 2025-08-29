@@ -5,7 +5,7 @@ import json
 import os
 from dotenv import load_dotenv
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
+import socket
 import time
 
 # Load environment variables
@@ -21,54 +21,41 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 # Data storage for custom commands only
 COMMANDS_FILE = 'custom_commands.json'
 
-# Simple HTTP server for health checks
-class HealthCheckHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        if self.path == '/health':
-            self.send_response(200)
-            self.send_header('Content-type', 'text/plain')
-            self.end_headers()
-            self.wfile.write(b'OK')
-        else:
-            self.send_response(404)
-            self.end_headers()
-    
-    def log_message(self, format, *args):
-        # Suppress access logs for cleaner output
-        pass
-
+# Simple socket-based health server
 def start_health_server():
-    """Start health server in background thread"""
+    """Start simple health server using sockets"""
     try:
-        # Use Railway's PORT environment variable
         port = int(os.getenv('PORT', 8080))
         print(f"Starting health server on port {port}")
         
-        server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
-        print(f"Health server created successfully")
+        # Create socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(('0.0.0.0', port))
+        sock.listen(1)
+        
+        print(f"✅ Health server listening on port {port}")
         
         # Start server in background
         def run_server():
             try:
-                server.serve_forever()
+                while True:
+                    conn, addr = sock.accept()
+                    data = conn.recv(1024).decode()
+                    if 'GET /health' in data:
+                        response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOK"
+                        conn.send(response.encode())
+                    else:
+                        response = "HTTP/1.1 404 Not Found\r\n\r\n"
+                        conn.send(response.encode())
+                    conn.close()
             except Exception as e:
                 print(f"Health server error: {e}")
         
         thread = threading.Thread(target=run_server, daemon=True)
         thread.start()
         
-        # Test if server is responding
-        import socket
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        result = sock.connect_ex(('localhost', port))
-        sock.close()
-        
-        if result == 0:
-            print(f"✅ Health server is responding on port {port}")
-            return True
-        else:
-            print(f"❌ Health server not responding on port {port}")
-            return False
+        return True
             
     except Exception as e:
         print(f"❌ Failed to start health server: {e}")
