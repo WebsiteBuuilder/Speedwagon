@@ -166,11 +166,11 @@ async def listcommands(interaction: discord.Interaction):
         await interaction.response.send_message("📝 No custom commands created yet!", ephemeral=True)
         return
     
-    embed = discord.Embed(
-        title="📝 Custom Commands",
-        description="Here are all your custom commands:",
-        color=0x00ff00
-    )
+          embed = discord.Embed(
+          title="📝 Custom Commands",
+          description="Here are all your custom commands:",
+          color=0x00ff00
+      )
     
     for cmd_name, response in custom_commands.items():
         # Truncate long responses for display
@@ -201,6 +201,81 @@ async def deletecommand(interaction: discord.Interaction, command_name: str):
     save_custom_commands(custom_commands)
     
     await interaction.response.send_message(f"🗑️ Command `/{command_name}` has been deleted!", ephemeral=True)
+
+@bot.tree.command(name="open", description="Open the business - rename status channel and make order channel public (Provider role only)")
+async def open_business(interaction: discord.Interaction):
+    # Check if user has Provider role
+    provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
+    if not provider_role or provider_role not in interaction.user.roles:
+        await interaction.response.send_message("❌ You need the Provider role to use this command!", ephemeral=True)
+        return
+    
+    try:
+        # Find the status channel
+        status_channel = discord.utils.get(interaction.guild.channels, name="status")
+        if not status_channel:
+            await interaction.response.send_message("❌ Could not find #status channel!", ephemeral=True)
+            return
+        
+        # Find the order channel
+        order_channel = discord.utils.get(interaction.guild.channels, name="orderhere")
+        if not order_channel:
+            await interaction.response.send_message("❌ Could not find #orderhere channel!", ephemeral=True)
+            return
+        
+        # Rename status channel to show OPEN
+        await status_channel.edit(name="🟢-open")
+        
+        # Make order channel public (remove @everyone overwrite if it exists)
+        everyone_role = interaction.guild.default_role
+        overwrites = order_channel.overwrites_for(everyone_role)
+        
+        # Remove any deny permissions for @everyone
+        if overwrites.view_channel is False:
+            overwrites.view_channel = None
+            await order_channel.set_permissions(everyone_role, overwrite=overwrites)
+        
+        await interaction.response.send_message("✅ Business is now **OPEN**! 🟢\n- Status channel renamed to 🟢-open\n- Order channel is now public", ephemeral=True)
+        
+    except discord.Forbidden:
+        await interaction.response.send_message("❌ I don't have permission to modify channels!", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Error: {str(e)}", ephemeral=True)
+
+@bot.tree.command(name="close", description="Close the business - rename status channel and make order channel private (Provider role only)")
+async def close_business(interaction: discord.Interaction):
+    # Check if user has Provider role
+    provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
+    if not provider_role or provider_role not in interaction.user.roles:
+        await interaction.response.send_message("❌ You need the Provider role to use this command!", ephemeral=True)
+        return
+    
+    try:
+        # Find the status channel
+        status_channel = discord.utils.get(interaction.guild.channels, name="status")
+        if not status_channel:
+            await interaction.response.send_message("❌ Could not find #status channel!", ephemeral=True)
+            return
+        
+        # Find the order channel
+        order_channel = discord.utils.get(interaction.guild.channels, name="orderhere")
+        if not order_channel:
+            await interaction.response.send_message("❌ Could not find #orderhere channel!", ephemeral=True)
+            return
+        
+        # Rename status channel to show CLOSED
+        await status_channel.edit(name="🔴-closed")
+        
+        # Make order channel private (deny @everyone view)
+        everyone_role = interaction.guild.default_role
+        await order_channel.set_permissions(everyone_role, view_channel=False)
+        
+        await interaction.response.send_message("✅ Business is now **CLOSED**! 🔴\n- Status channel renamed to 🔴-closed\n- Order channel is now private", ephemeral=True)
+        
+    except discord.Forbidden:
+        await interaction.response.send_message("❌ I don't have permission to modify channels!", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Error: {str(e)}", ephemeral=True)
 
 # Dynamic command handler for custom commands
 @bot.event
