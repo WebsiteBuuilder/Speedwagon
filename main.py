@@ -38,32 +38,40 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         pass
 
 def start_health_server():
+    """Start health server in background thread"""
     try:
         # Use Railway's PORT environment variable
         port = int(os.getenv('PORT', 8080))
-        server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
-        print(f"Health check server running on port {port}")
-        server.serve_forever()
-    except Exception as e:
-        print(f"Health server error: {e}")
-
-def start_health_server_sync():
-    """Start health server and wait for it to be ready"""
-    try:
-        port = int(os.getenv('PORT', 8080))
-        server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
-        print(f"Health check server starting on port {port}")
+        print(f"Starting health server on port {port}")
         
-        # Start server in background thread
-        health_thread = threading.Thread(target=server.serve_forever, daemon=True)
-        health_thread.start()
+        server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+        print(f"Health server created successfully")
         
-        # Give server time to start
-        time.sleep(2)
-        print(f"Health check server ready on port {port}")
-        return True
+        # Start server in background
+        def run_server():
+            try:
+                server.serve_forever()
+            except Exception as e:
+                print(f"Health server error: {e}")
+        
+        thread = threading.Thread(target=run_server, daemon=True)
+        thread.start()
+        
+        # Test if server is responding
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        result = sock.connect_ex(('localhost', port))
+        sock.close()
+        
+        if result == 0:
+            print(f"✅ Health server is responding on port {port}")
+            return True
+        else:
+            print(f"❌ Health server not responding on port {port}")
+            return False
+            
     except Exception as e:
-        print(f"Health server error: {e}")
+        print(f"❌ Failed to start health server: {e}")
         return False
 
 # Load custom commands
@@ -189,7 +197,7 @@ async def listcommands(interaction: discord.Interaction):
           title="📝 Custom Commands",
           description="Here are all your custom commands:",
           color=0x00ff00
-      )
+      ) 
     
     for cmd_name, response in custom_commands.items():
         # Truncate long responses for display
@@ -335,13 +343,17 @@ if __name__ == "__main__":
     
     print(f"✅ Discord token found (length: {len(token)})")
     
-    # Start health check server and wait for it to be ready
+    # Start health check server
     print("Starting health check server...")
-    if start_health_server_sync():
+    health_ready = start_health_server()
+    
+    if health_ready:
         print("✅ Health check server is ready")
     else:
-        print("❌ Failed to start health check server")
-        print("Bot will continue but health checks may fail")
+        print("⚠️ Health check server failed, but continuing...")
+    
+    # Give health server a moment to fully start
+    time.sleep(3)
     
     # Start the bot
     print("Connecting to Discord...")
