@@ -1,0 +1,129 @@
+import discord
+from discord import app_commands
+from discord.ext import commands
+import json
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Bot setup
+intents = discord.Intents.default()
+intents.message_content = True
+intents.members = True
+
+bot = commands.Bot(command_prefix='!', intents=intents)
+
+# Data storage for custom commands only
+COMMANDS_FILE = 'custom_commands.json'
+
+# Load custom commands
+def load_custom_commands():
+    try:
+        with open(COMMANDS_FILE, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+# Save custom commands
+def save_custom_commands(commands_dict):
+    with open(COMMANDS_FILE, 'w') as f:
+        json.dump(commands_dict, f, indent=2)
+
+# Initialize custom commands file
+if not os.path.exists(COMMANDS_FILE):
+    save_custom_commands({})
+
+@bot.event
+async def on_ready():
+    print(f'{bot.user} has connected to Discord!')
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} command(s)")
+    except Exception as e:
+        print(f"Failed to sync commands: {e}")
+
+@bot.tree.command(name="editcommand", description="Create or edit a custom command (Provider role only)")
+@app_commands.describe(
+    command_name="Name of the command (without /)",
+    response="What the command should respond with"
+)
+async def editcommand(interaction: discord.Interaction, command_name: str, response: str):
+    # Check if user has Provider role
+    provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
+    if not provider_role or provider_role not in interaction.user.roles:
+        await interaction.response.send_message("❌ You need the Provider role to use this command!", ephemeral=True)
+        return
+    
+    # Load existing commands
+    custom_commands = load_custom_commands()
+    
+    # Add/update command
+    custom_commands[command_name.lower()] = response
+    save_custom_commands(custom_commands)
+    
+    await interaction.response.send_message(f"✅ Command `/{command_name}` has been updated!", ephemeral=True)
+
+@bot.tree.command(name="neck", description="Get payment method links")
+async def neck(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="💳 Payment Methods",
+        description="Here are our accepted payment methods:",
+        color=0x0099ff
+    )
+    
+    embed.add_field(
+        name="🍎 Apple Pay",
+        value="[Add to Apple Wallet](https://example.com/apple-wallet)",
+        inline=False
+    )
+    embed.add_field(
+        name="💸 Zelle",
+        value="[Send to Zelle](https://example.com/zelle)",
+        inline=False
+    )
+    embed.add_field(
+        name="📱 Cash App",
+        value="[Send via Cash App](https://example.com/cashapp)",
+        inline=False
+    )
+    embed.add_field(
+        name="💳 Credit/Debit",
+        value="[Pay Online](https://example.com/credit)",
+        inline=False
+    )
+    
+    embed.set_footer(text="Contact support if you need help with payment!")
+    
+    await interaction.response.send_message(embed=embed)
+
+# Dynamic command handler for custom commands
+@bot.event
+async def on_interaction(interaction):
+    if interaction.type == discord.InteractionType.application_command:
+        command_name = interaction.data['name']
+        
+        # Check if it's a custom command
+        custom_commands = load_custom_commands()
+        if command_name in custom_commands:
+            response = custom_commands[command_name]
+            await interaction.response.send_message(response)
+            return
+    
+    # Let other interactions pass through
+    await bot.process_application_commands(interaction)
+
+# Error handling
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ You don't have permission to use this command!")
+    elif isinstance(error, commands.CommandNotFound):
+        pass  # Ignore command not found errors
+    else:
+        print(f"Error: {error}")
+
+# Run the bot
+if __name__ == "__main__":
+    bot.run(os.getenv('DISCORD_TOKEN'))
