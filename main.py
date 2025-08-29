@@ -73,26 +73,57 @@ async def on_ready():
     except Exception as e:
         print(f"Failed to sync commands: {e}")
 
-@bot.tree.command(name="editcommand", description="Create or edit a custom command")
+@bot.tree.command(name="createcommand", description="Create a new custom command (Provider role only)")
 @app_commands.describe(
     command_name="Name of the command (without /)",
     response="What the command should respond with"
 )
-async def editcommand(interaction: discord.Interaction, command_name: str, response: str):
+async def createcommand(interaction: discord.Interaction, command_name: str, response: str):
+    # Check if user has Provider role
+    provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
+    if not provider_role or provider_role not in interaction.user.roles:
+        await interaction.response.send_message("❌ You need the Provider role to use this command!", ephemeral=True)
+        return
+    
     # Load existing commands
     custom_commands = load_custom_commands()
     
     # Check if command already exists
-    command_exists = command_name.lower() in custom_commands
+    if command_name.lower() in custom_commands:
+        await interaction.response.send_message(f"❌ Command `/{command_name}` already exists! Use `/editcommand` to modify it.", ephemeral=True)
+        return
     
-    # Add/update command
+    # Add new command
     custom_commands[command_name.lower()] = response
     save_custom_commands(custom_commands)
     
-    if command_exists:
-        await interaction.response.send_message(f"✅ Command `/{command_name}` has been updated!", ephemeral=True)
-    else:
-        await interaction.response.send_message(f"✅ New command `/{command_name}` has been created!", ephemeral=True)
+    await interaction.response.send_message(f"✅ New command `/{command_name}` has been created!", ephemeral=True)
+
+@bot.tree.command(name="editcommand", description="Edit an existing custom command (Provider role only)")
+@app_commands.describe(
+    command_name="Name of the command to edit",
+    response="New response for the command"
+)
+async def editcommand(interaction: discord.Interaction, command_name: str, response: str):
+    # Check if user has Provider role
+    provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
+    if not provider_role or provider_role not in interaction.user.roles:
+        await interaction.response.send_message("❌ You need the Provider role to use this command!", ephemeral=True)
+        return
+    
+    # Load existing commands
+    custom_commands = load_custom_commands()
+    
+    # Check if command exists
+    if command_name.lower() not in custom_commands:
+        await interaction.response.send_message(f"❌ Command `/{command_name}` doesn't exist! Use `/createcommand` to create it.", ephemeral=True)
+        return
+    
+    # Update command
+    custom_commands[command_name.lower()] = response
+    save_custom_commands(custom_commands)
+    
+    await interaction.response.send_message(f"✅ Command `/{command_name}` has been updated!", ephemeral=True)
 
 @bot.tree.command(name="neck", description="Get payment method links")
 async def neck(interaction: discord.Interaction):
@@ -148,11 +179,17 @@ async def listcommands(interaction: discord.Interaction):
     
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-@bot.tree.command(name="deletecommand", description="Delete a custom command")
+@bot.tree.command(name="deletecommand", description="Delete a custom command (Provider role only)")
 @app_commands.describe(
     command_name="Name of the command to delete"
 )
 async def deletecommand(interaction: discord.Interaction, command_name: str):
+    # Check if user has Provider role
+    provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
+    if not provider_role or provider_role not in interaction.user.roles:
+        await interaction.response.send_message("❌ You need the Provider role to use this command!", ephemeral=True)
+        return
+    
     custom_commands = load_custom_commands()
     
     if command_name.lower() not in custom_commands:
