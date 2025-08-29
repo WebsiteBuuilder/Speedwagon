@@ -73,26 +73,26 @@ async def on_ready():
     except Exception as e:
         print(f"Failed to sync commands: {e}")
 
-@bot.tree.command(name="editcommand", description="Create or edit a custom command (Provider role only)")
+@bot.tree.command(name="editcommand", description="Create or edit a custom command")
 @app_commands.describe(
     command_name="Name of the command (without /)",
     response="What the command should respond with"
 )
 async def editcommand(interaction: discord.Interaction, command_name: str, response: str):
-    # Check if user has Provider role
-    provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
-    if not provider_role or provider_role not in interaction.user.roles:
-        await interaction.response.send_message("❌ You need the Provider role to use this command!", ephemeral=True)
-        return
-    
     # Load existing commands
     custom_commands = load_custom_commands()
+    
+    # Check if command already exists
+    command_exists = command_name.lower() in custom_commands
     
     # Add/update command
     custom_commands[command_name.lower()] = response
     save_custom_commands(custom_commands)
     
-    await interaction.response.send_message(f"✅ Command `/{command_name}` has been updated!", ephemeral=True)
+    if command_exists:
+        await interaction.response.send_message(f"✅ Command `/{command_name}` has been updated!", ephemeral=True)
+    else:
+        await interaction.response.send_message(f"✅ New command `/{command_name}` has been created!", ephemeral=True)
 
 @bot.tree.command(name="neck", description="Get payment method links")
 async def neck(interaction: discord.Interaction):
@@ -126,6 +126,44 @@ async def neck(interaction: discord.Interaction):
     embed.set_footer(text="Contact support if you need help with payment!")
     
     await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="listcommands", description="List all custom commands")
+async def listcommands(interaction: discord.Interaction):
+    custom_commands = load_custom_commands()
+    
+    if not custom_commands:
+        await interaction.response.send_message("📝 No custom commands created yet!", ephemeral=True)
+        return
+    
+    embed = discord.Embed(
+        title="📝 Custom Commands",
+        description="Here are all your custom commands:",
+        color=0x00ff00
+    )
+    
+    for cmd_name, response in custom_commands.items():
+        # Truncate long responses for display
+        display_response = response[:50] + "..." if len(response) > 50 else response
+        embed.add_field(name=f"/{cmd_name}", value=display_response, inline=False)
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="deletecommand", description="Delete a custom command")
+@app_commands.describe(
+    command_name="Name of the command to delete"
+)
+async def deletecommand(interaction: discord.Interaction, command_name: str):
+    custom_commands = load_custom_commands()
+    
+    if command_name.lower() not in custom_commands:
+        await interaction.response.send_message(f"❌ Command `/{command_name}` doesn't exist!", ephemeral=True)
+        return
+    
+    # Delete the command
+    del custom_commands[command_name.lower()]
+    save_custom_commands(custom_commands)
+    
+    await interaction.response.send_message(f"🗑️ Command `/{command_name}` has been deleted!", ephemeral=True)
 
 # Dynamic command handler for custom commands
 @bot.event
