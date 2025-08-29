@@ -4,6 +4,9 @@ from discord.ext import commands
 import json
 import os
 from dotenv import load_dotenv
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import time
 
 # Load environment variables
 load_dotenv()
@@ -17,6 +20,32 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Data storage for custom commands only
 COMMANDS_FILE = 'custom_commands.json'
+
+# Simple HTTP server for health checks
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == '/health':
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(b'OK')
+        else:
+            self.send_response(404)
+            self.end_headers()
+    
+    def log_message(self, format, *args):
+        # Suppress access logs for cleaner output
+        pass
+
+def start_health_server():
+    try:
+        # Use Railway's PORT environment variable
+        port = int(os.getenv('PORT', 8080))
+        server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+        print(f"Health check server running on port {port}")
+        server.serve_forever()
+    except Exception as e:
+        print(f"Health server error: {e}")
 
 # Load custom commands
 def load_custom_commands():
@@ -126,4 +155,16 @@ async def on_command_error(ctx, error):
 
 # Run the bot
 if __name__ == "__main__":
+    print("Starting Speedwagon Discord bot...")
+    
+    # Start health check server immediately
+    health_thread = threading.Thread(target=start_health_server, daemon=True)
+    health_thread.start()
+    
+    # Give health server a moment to start
+    time.sleep(1)
+    print("Health check server started")
+    
+    # Start the bot
+    print("Connecting to Discord...")
     bot.run(os.getenv('DISCORD_TOKEN'))
