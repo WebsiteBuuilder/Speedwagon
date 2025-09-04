@@ -18,8 +18,9 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-# Data storage for custom commands only
+# Data storage files
 COMMANDS_FILE = 'custom_commands.json'
+LINKS_FILE = 'payment_links.json'
 
 # Simple socket-based health server
 def start_health_server():
@@ -74,9 +75,35 @@ def save_custom_commands(commands_dict):
     with open(COMMANDS_FILE, 'w') as f:
         json.dump(commands_dict, f, indent=2)
 
-# Initialize custom commands file
+# Load payment links
+def load_payment_links():
+    try:
+        with open(LINKS_FILE, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {
+            "apple_pay": "",
+            "zelle": "",
+            "cashapp": "",
+            "credit": ""
+        }
+
+# Save payment links
+def save_payment_links(links_dict):
+    with open(LINKS_FILE, 'w') as f:
+        json.dump(links_dict, f, indent=2)
+
+# Initialize data files
 if not os.path.exists(COMMANDS_FILE):
     save_custom_commands({})
+
+if not os.path.exists(LINKS_FILE):
+    save_payment_links({
+        "apple_pay": "",
+        "zelle": "",
+        "cashapp": "",
+        "credit": ""
+    })
 
 @bot.event
 async def on_ready():
@@ -141,32 +168,51 @@ async def editcommand(interaction: discord.Interaction, command_name: str, respo
 
 @bot.tree.command(name="neck", description="Get payment method links")
 async def neck(interaction: discord.Interaction):
+    # Load payment links
+    links = load_payment_links()
+    
     embed = discord.Embed(
         title="💳 Payment Methods",
         description="Here are our accepted payment methods:",
         color=0x0099ff
     )
     
-    embed.add_field(
-        name="🍎 Apple Pay",
-        value="[Add to Apple Wallet](https://example.com/apple-wallet)",
-        inline=False
-    )
-    embed.add_field(
-        name="💸 Zelle",
-        value="[Send to Zelle](https://example.com/zelle)",
-        inline=False
-    )
-    embed.add_field(
-        name="📱 Cash App",
-        value="[Send via Cash App](https://example.com/cashapp)",
-        inline=False
-    )
-    embed.add_field(
-        name="💳 Credit/Debit",
-        value="[Pay Online](https://example.com/credit)",
-        inline=False
-    )
+    # Add fields only if links are set
+    if links.get("apple_pay"):
+        embed.add_field(
+            name="🍎 Apple Pay",
+            value=f"[Add to Apple Wallet]({links['apple_pay']})",
+            inline=False
+        )
+    
+    if links.get("zelle"):
+        embed.add_field(
+            name="💸 Zelle",
+            value=f"[Send to Zelle]({links['zelle']})",
+            inline=False
+        )
+    
+    if links.get("cashapp"):
+        embed.add_field(
+            name="📱 Cash App",
+            value=f"[Send via Cash App]({links['cashapp']})",
+            inline=False
+        )
+    
+    if links.get("credit"):
+        embed.add_field(
+            name="💳 Credit/Debit",
+            value=f"[Pay Online]({links['credit']})",
+            inline=False
+        )
+    
+    # If no links are set, show a message
+    if not any(links.values()):
+        embed.add_field(
+            name="⚠️ No Payment Links Set",
+            value="Contact an admin to set up payment methods using `/setlink`",
+            inline=False
+        )
     
     embed.set_footer(text="Contact support if you need help with payment!")
     
@@ -180,11 +226,11 @@ async def listcommands(interaction: discord.Interaction):
         await interaction.response.send_message("📝 No custom commands created yet!", ephemeral=True)
         return
     
-          embed = discord.Embed(
-          title="📝 Custom Commands",
-          description="Here are all your custom commands:",
-          color=0x00ff00
-      ) 
+    embed = discord.Embed(
+        title="📝 Custom Commands",
+        description="Here are all your custom commands:",
+        color=0x00ff00
+    ) 
     
     for cmd_name, response in custom_commands.items():
         # Truncate long responses for display
@@ -216,6 +262,77 @@ async def deletecommand(interaction: discord.Interaction, command_name: str):
     
     await interaction.response.send_message(f"🗑️ Command `/{command_name}` has been deleted!", ephemeral=True)
 
+@bot.tree.command(name="setlink", description="Set a payment method link (Provider role only)")
+@app_commands.describe(
+    payment_method="Which payment method to set (apple_pay, zelle, cashapp, credit)",
+    url="The URL/link for this payment method"
+)
+@app_commands.choices(payment_method=[
+    app_commands.Choice(name="Apple Pay", value="apple_pay"),
+    app_commands.Choice(name="Zelle", value="zelle"),
+    app_commands.Choice(name="Cash App", value="cashapp"),
+    app_commands.Choice(name="Credit/Debit", value="credit")
+])
+async def setlink(interaction: discord.Interaction, payment_method: str, url: str):
+    # Check if user has Provider role
+    provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
+    if not provider_role or provider_role not in interaction.user.roles:
+        await interaction.response.send_message("❌ You need the Provider role to use this command!", ephemeral=True)
+        return
+    
+    # Load existing links
+    links = load_payment_links()
+    
+    # Update the specified payment method
+    links[payment_method] = url
+    save_payment_links(links)
+    
+    # Get display name for payment method
+    method_names = {
+        "apple_pay": "Apple Pay",
+        "zelle": "Zelle", 
+        "cashapp": "Cash App",
+        "credit": "Credit/Debit"
+    }
+    
+    await interaction.response.send_message(
+        f"✅ {method_names[payment_method]} link has been set!\n`{url}`", 
+        ephemeral=True
+    )
+
+@bot.tree.command(name="viewlinks", description="View all current payment links (Provider role only)")
+async def viewlinks(interaction: discord.Interaction):
+    # Check if user has Provider role
+    provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
+    if not provider_role or provider_role not in interaction.user.roles:
+        await interaction.response.send_message("❌ You need the Provider role to use this command!", ephemeral=True)
+        return
+    
+    # Load payment links
+    links = load_payment_links()
+    
+    embed = discord.Embed(
+        title="🔗 Current Payment Links",
+        description="Here are the currently set payment links:",
+        color=0x00ff00
+    )
+    
+    method_names = {
+        "apple_pay": "🍎 Apple Pay",
+        "zelle": "💸 Zelle",
+        "cashapp": "📱 Cash App", 
+        "credit": "💳 Credit/Debit"
+    }
+    
+    for method, name in method_names.items():
+        link = links.get(method, "")
+        if link:
+            embed.add_field(name=name, value=f"`{link}`", inline=False)
+        else:
+            embed.add_field(name=name, value="*Not set*", inline=False)
+    
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
 @bot.tree.command(name="open", description="Open the business - rename status channel and make order channel public (Provider role only)")
 async def open_business(interaction: discord.Interaction):
     # Check if user has Provider role
@@ -225,16 +342,26 @@ async def open_business(interaction: discord.Interaction):
         return
     
     try:
-        # Find the status channel
-        status_channel = discord.utils.get(interaction.guild.channels, name="status")
+        # Find the status channel (check for various names)
+        status_channel = None
+        for channel in interaction.guild.channels:
+            if any(name in channel.name.lower() for name in ["status", "open", "closed"]):
+                status_channel = channel
+                break
+        
         if not status_channel:
-            await interaction.response.send_message("❌ Could not find #status channel!", ephemeral=True)
+            await interaction.response.send_message("❌ Could not find status channel! Please create a channel with 'status', 'open', or 'closed' in the name.", ephemeral=True)
             return
         
-        # Find the order channel
-        order_channel = discord.utils.get(interaction.guild.channels, name="orderhere")
+        # Find the order channel (check for various names)
+        order_channel = None
+        for channel in interaction.guild.channels:
+            if any(name in channel.name.lower() for name in ["order", "orders"]):
+                order_channel = channel
+                break
+        
         if not order_channel:
-            await interaction.response.send_message("❌ Could not find #orderhere channel!", ephemeral=True)
+            await interaction.response.send_message("❌ Could not find order channel! Please create a channel with 'order' or 'orders' in the name.", ephemeral=True)
             return
         
         # Rename status channel to show OPEN
@@ -265,16 +392,26 @@ async def close_business(interaction: discord.Interaction):
         return
     
     try:
-        # Find the status channel
-        status_channel = discord.utils.get(interaction.guild.channels, name="status")
+        # Find the status channel (check for various names)
+        status_channel = None
+        for channel in interaction.guild.channels:
+            if any(name in channel.name.lower() for name in ["status", "open", "closed"]):
+                status_channel = channel
+                break
+        
         if not status_channel:
-            await interaction.response.send_message("❌ Could not find #status channel!", ephemeral=True)
+            await interaction.response.send_message("❌ Could not find status channel! Please create a channel with 'status', 'open', or 'closed' in the name.", ephemeral=True)
             return
         
-        # Find the order channel
-        order_channel = discord.utils.get(interaction.guild.channels, name="orderhere")
+        # Find the order channel (check for various names)
+        order_channel = None
+        for channel in interaction.guild.channels:
+            if any(name in channel.name.lower() for name in ["order", "orders"]):
+                order_channel = channel
+                break
+        
         if not order_channel:
-            await interaction.response.send_message("❌ Could not find #orderhere channel!", ephemeral=True)
+            await interaction.response.send_message("❌ Could not find order channel! Please create a channel with 'order' or 'orders' in the name.", ephemeral=True)
             return
         
         # Rename status channel to show CLOSED

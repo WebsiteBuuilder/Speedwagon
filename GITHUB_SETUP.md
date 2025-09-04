@@ -78,3 +78,5 @@ Speedwagon-Discord-Bot/
 └── .gitignore           # Git ignore rules
 ```
 
+
+
