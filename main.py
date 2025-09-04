@@ -335,13 +335,10 @@ async def viewlinks(interaction: discord.Interaction):
 
 @bot.tree.command(name="open", description="Open the business - rename status channel and make order channel public (Provider role only)")
 async def open_business(interaction: discord.Interaction):
-    # Respond immediately to prevent timeout
-    await interaction.response.defer(ephemeral=True)
-    
     # Check if user has Provider role
     provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
     if not provider_role or provider_role not in interaction.user.roles:
-        await interaction.followup.send("❌ You need the Provider role to use this command!", ephemeral=True)
+        await interaction.response.send_message("❌ You need the Provider role to use this command!", ephemeral=True)
         return
     
     try:
@@ -358,7 +355,7 @@ async def open_business(interaction: discord.Interaction):
                 break
         
         if not status_channel:
-            await interaction.followup.send("❌ Could not find status channel! Please create a channel with 'status' in the name.", ephemeral=True)
+            await interaction.response.send_message("❌ Could not find status channel! Please create a channel with 'status' in the name.", ephemeral=True)
             return
         
         # Find the order channel (look for order-here in name)
@@ -369,7 +366,7 @@ async def open_business(interaction: discord.Interaction):
                 break
         
         if not order_channel:
-            await interaction.followup.send("❌ Could not find order-here channel! Please create a channel with 'order-here' in the name.", ephemeral=True)
+            await interaction.response.send_message("❌ Could not find order-here channel! Please create a channel with 'order-here' in the name.", ephemeral=True)
             return
         
         # Rename status channel to show OPEN
@@ -384,22 +381,19 @@ async def open_business(interaction: discord.Interaction):
             overwrites.view_channel = None
             await order_channel.set_permissions(everyone_role, overwrite=overwrites)
         
-        await interaction.followup.send("✅ Business is now **OPEN**! 🟢\n- Status channel renamed to 🟢-open\n- Order channel is now public", ephemeral=True)
+        await interaction.response.send_message("✅ Business is now **OPEN**! 🟢\n- Status channel renamed to 🟢-open\n- Order channel is now public", ephemeral=True)
         
     except discord.Forbidden:
-        await interaction.followup.send("❌ I don't have permission to modify channels!", ephemeral=True)
+        await interaction.response.send_message("❌ I don't have permission to modify channels!", ephemeral=True)
     except Exception as e:
-        await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+        await interaction.response.send_message(f"❌ Error: {str(e)}", ephemeral=True)
 
 @bot.tree.command(name="close", description="Close the business - rename status channel and make order channel private (Provider role only)")
 async def close_business(interaction: discord.Interaction):
-    # Respond immediately to prevent timeout
-    await interaction.response.defer(ephemeral=True)
-    
     # Check if user has Provider role
     provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
     if not provider_role or provider_role not in interaction.user.roles:
-        await interaction.followup.send("❌ You need the Provider role to use this command!", ephemeral=True)
+        await interaction.response.send_message("❌ You need the Provider role to use this command!", ephemeral=True)
         return
     
     try:
@@ -416,7 +410,7 @@ async def close_business(interaction: discord.Interaction):
                 break
         
         if not status_channel:
-            await interaction.followup.send("❌ Could not find status channel! Please create a channel with 'status' in the name.", ephemeral=True)
+            await interaction.response.send_message("❌ Could not find status channel! Please create a channel with 'status' in the name.", ephemeral=True)
             return
         
         # Find the order channel (look for order-here in name)
@@ -427,7 +421,7 @@ async def close_business(interaction: discord.Interaction):
                 break
         
         if not order_channel:
-            await interaction.followup.send("❌ Could not find order-here channel! Please create a channel with 'order-here' in the name.", ephemeral=True)
+            await interaction.response.send_message("❌ Could not find order-here channel! Please create a channel with 'order-here' in the name.", ephemeral=True)
             return
         
         # Rename status channel to show CLOSED
@@ -437,12 +431,12 @@ async def close_business(interaction: discord.Interaction):
         everyone_role = interaction.guild.default_role
         await order_channel.set_permissions(everyone_role, view_channel=False)
         
-        await interaction.followup.send("✅ Business is now **CLOSED**! 🔴\n- Status channel renamed to 🔴-closed\n- Order channel is now private", ephemeral=True)
+        await interaction.response.send_message("✅ Business is now **CLOSED**! 🔴\n- Status channel renamed to 🔴-closed\n- Order channel is now private", ephemeral=True)
         
     except discord.Forbidden:
-        await interaction.followup.send("❌ I don't have permission to modify channels!", ephemeral=True)
+        await interaction.response.send_message("❌ I don't have permission to modify channels!", ephemeral=True)
     except Exception as e:
-        await interaction.followup.send(f"❌ Error: {str(e)}", ephemeral=True)
+        await interaction.response.send_message(f"❌ Error: {str(e)}", ephemeral=True)
 
 # Dynamic command handler for custom commands
 @bot.event
