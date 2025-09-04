@@ -345,31 +345,15 @@ async def open_business(interaction: discord.Interaction):
     await interaction.response.send_message("🔄 Opening business...", ephemeral=True)
     
     try:
-        # Find the status channel (look for any channel that could be a status channel)
+        # Find the status channel (look for channels that start with emoji indicators)
         status_channel = None
         for channel in interaction.guild.channels:
-            # Look for channels with "status" in name, or channels that start with emoji indicators
-            if ("status" in channel.name.lower() or 
-                channel.name.startswith("🟢-") or 
-                channel.name.startswith("🔴-") or
-                "open" in channel.name.lower() or
-                "closed" in channel.name.lower()):
+            if channel.name.startswith("🟢-") or channel.name.startswith("🔴-"):
                 status_channel = channel
                 break
         
-        # Debug: Log what channel we found
-        if status_channel:
-            print(f"Found status channel: {status_channel.name}")
-        else:
-            print("No status channel found!")
-            # List all channels for debugging
-            for ch in interaction.guild.channels:
-                print(f"Channel: {ch.name}")
-                if hasattr(ch, 'type') and ch.type == discord.ChannelType.text:
-                    print(f"  - Text channel: {ch.name}")
-        
         if not status_channel:
-            await interaction.edit_original_response(content="❌ Could not find status channel! Please create a channel with 'status' in the name.")
+            await interaction.edit_original_response(content="❌ Could not find status channel! Please use /open first to create one.")
             return
         
         # Find the order channel (look for order-here in name)
@@ -380,7 +364,7 @@ async def open_business(interaction: discord.Interaction):
                 break
         
         if not order_channel:
-            await interaction.edit_original_response(content="❌ Could not find order-here channel! Please create a channel with 'order-here' in the name.")
+            await interaction.edit_original_response(content="❌ Could not find order-here channel!")
             return
         
         # Rename status channel to show OPEN
@@ -414,31 +398,15 @@ async def close_business(interaction: discord.Interaction):
     await interaction.response.send_message("🔄 Closing business...", ephemeral=True)
     
     try:
-        # Find the status channel (look for any channel that could be a status channel)
+        # Find the status channel (look for channels that start with emoji indicators)
         status_channel = None
         for channel in interaction.guild.channels:
-            # Look for channels with "status" in name, or channels that start with emoji indicators
-            if ("status" in channel.name.lower() or 
-                channel.name.startswith("🟢-") or 
-                channel.name.startswith("🔴-") or
-                "open" in channel.name.lower() or
-                "closed" in channel.name.lower()):
+            if channel.name.startswith("🟢-") or channel.name.startswith("🔴-"):
                 status_channel = channel
                 break
         
-        # Debug: Log what channel we found
-        if status_channel:
-            print(f"Found status channel: {status_channel.name}")
-        else:
-            print("No status channel found!")
-            # List all channels for debugging
-            for ch in interaction.guild.channels:
-                print(f"Channel: {ch.name}")
-                if hasattr(ch, 'type') and ch.type == discord.ChannelType.text:
-                    print(f"  - Text channel: {ch.name}")
-        
         if not status_channel:
-            await interaction.edit_original_response(content="❌ Could not find status channel! Please create a channel with 'status' in the name.")
+            await interaction.edit_original_response(content="❌ Could not find status channel! Please use /open first to create one.")
             return
         
         # Find the order channel (look for order-here in name)
@@ -449,7 +417,7 @@ async def close_business(interaction: discord.Interaction):
                 break
         
         if not order_channel:
-            await interaction.edit_original_response(content="❌ Could not find order-here channel! Please create a channel with 'order-here' in the name.")
+            await interaction.edit_original_response(content="❌ Could not find order-here channel!")
             return
         
         # Rename status channel to show CLOSED
