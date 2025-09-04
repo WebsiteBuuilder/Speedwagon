@@ -345,15 +345,18 @@ async def open_business(interaction: discord.Interaction):
         return
     
     try:
-        # Find the status channel (look for open, closed, or status in name)
+        # Find the status channel (look for status, or channels that start with emoji indicators)
         status_channel = None
         for channel in interaction.guild.channels:
-            if any(name in channel.name.lower() for name in ["status", "open", "closed"]):
+            # Look for channels with "status" in name, or channels that start with emoji indicators
+            if ("status" in channel.name.lower() or 
+                channel.name.startswith("🟢-") or 
+                channel.name.startswith("🔴-")):
                 status_channel = channel
                 break
         
         if not status_channel:
-            await interaction.followup.send("❌ Could not find status channel! Please create a channel with 'status', 'open', or 'closed' in the name.", ephemeral=True)
+            await interaction.followup.send("❌ Could not find status channel! Please create a channel with 'status' in the name.", ephemeral=True)
             return
         
         # Find the order channel (look for order-here in name)
@@ -398,15 +401,18 @@ async def close_business(interaction: discord.Interaction):
         return
     
     try:
-        # Find the status channel (look for open, closed, or status in name)
+        # Find the status channel (look for status, or channels that start with emoji indicators)
         status_channel = None
         for channel in interaction.guild.channels:
-            if any(name in channel.name.lower() for name in ["status", "open", "closed"]):
+            # Look for channels with "status" in name, or channels that start with emoji indicators
+            if ("status" in channel.name.lower() or 
+                channel.name.startswith("🟢-") or 
+                channel.name.startswith("🔴-")):
                 status_channel = channel
                 break
         
         if not status_channel:
-            await interaction.followup.send("❌ Could not find status channel! Please create a channel with 'status', 'open', or 'closed' in the name.", ephemeral=True)
+            await interaction.followup.send("❌ Could not find status channel! Please create a channel with 'status' in the name.", ephemeral=True)
             return
         
         # Find the order channel (look for order-here in name)
