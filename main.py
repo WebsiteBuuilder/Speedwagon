@@ -345,13 +345,15 @@ async def open_business(interaction: discord.Interaction):
         return
     
     try:
-        # Find the status channel (look for status, or channels that start with emoji indicators)
+        # Find the status channel (look for any channel that could be a status channel)
         status_channel = None
         for channel in interaction.guild.channels:
             # Look for channels with "status" in name, or channels that start with emoji indicators
             if ("status" in channel.name.lower() or 
                 channel.name.startswith("🟢-") or 
-                channel.name.startswith("🔴-")):
+                channel.name.startswith("🔴-") or
+                "open" in channel.name.lower() or
+                "closed" in channel.name.lower()):
                 status_channel = channel
                 break
         
@@ -401,13 +403,15 @@ async def close_business(interaction: discord.Interaction):
         return
     
     try:
-        # Find the status channel (look for status, or channels that start with emoji indicators)
+        # Find the status channel (look for any channel that could be a status channel)
         status_channel = None
         for channel in interaction.guild.channels:
             # Look for channels with "status" in name, or channels that start with emoji indicators
             if ("status" in channel.name.lower() or 
                 channel.name.startswith("🟢-") or 
-                channel.name.startswith("🔴-")):
+                channel.name.startswith("🔴-") or
+                "open" in channel.name.lower() or
+                "closed" in channel.name.lower()):
                 status_channel = channel
                 break
         
