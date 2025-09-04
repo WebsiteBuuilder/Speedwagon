@@ -357,6 +357,17 @@ async def open_business(interaction: discord.Interaction):
                 status_channel = channel
                 break
         
+        # Debug: Log what channel we found
+        if status_channel:
+            print(f"Found status channel: {status_channel.name}")
+        else:
+            print("No status channel found!")
+            # List all channels for debugging
+            for ch in interaction.guild.channels:
+                print(f"Channel: {ch.name}")
+                if hasattr(ch, 'type') and ch.type == discord.ChannelType.text:
+                    print(f"  - Text channel: {ch.name}")
+        
         if not status_channel:
             await interaction.edit_original_response(content="❌ Could not find status channel! Please create a channel with 'status' in the name.")
             return
@@ -414,6 +425,17 @@ async def close_business(interaction: discord.Interaction):
                 "closed" in channel.name.lower()):
                 status_channel = channel
                 break
+        
+        # Debug: Log what channel we found
+        if status_channel:
+            print(f"Found status channel: {status_channel.name}")
+        else:
+            print("No status channel found!")
+            # List all channels for debugging
+            for ch in interaction.guild.channels:
+                print(f"Channel: {ch.name}")
+                if hasattr(ch, 'type') and ch.type == discord.ChannelType.text:
+                    print(f"  - Text channel: {ch.name}")
         
         if not status_channel:
             await interaction.edit_original_response(content="❌ Could not find status channel! Please create a channel with 'status' in the name.")
