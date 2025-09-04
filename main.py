@@ -458,7 +458,7 @@ async def on_interaction(interaction):
             return
     
     # Let other interactions pass through
-    await bot.tree.on_interaction(interaction)
+    pass
 
 # Error handling
 @bot.event
