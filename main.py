@@ -345,26 +345,26 @@ async def open_business(interaction: discord.Interaction):
     await interaction.response.send_message("🔄 Opening business...", ephemeral=True)
     
     try:
-        # Find the status channel (look for channels that start with emoji indicators)
+        # Find or create the status channel
         status_channel = None
         for channel in interaction.guild.channels:
-            if channel.name.startswith("🟢-") or channel.name.startswith("🔴-"):
+            if channel.name.startswith("🟢-") or channel.name.startswith("🔴-") or channel.name == "status":
                 status_channel = channel
                 break
         
+        # If no status channel exists, create one
         if not status_channel:
-            await interaction.edit_original_response(content="❌ Could not find status channel! Please use /open first to create one.")
-            return
+            status_channel = await interaction.guild.create_text_channel("🟢-open")
         
         # Find the order channel (look for order-here in name)
         order_channel = None
         for channel in interaction.guild.channels:
-            if "order-here" in channel.name.lower():
+            if "order-here" in channel.name.lower() or "order" in channel.name.lower():
                 order_channel = channel
                 break
         
         if not order_channel:
-            await interaction.edit_original_response(content="❌ Could not find order-here channel!")
+            await interaction.edit_original_response(content="❌ Could not find order channel! Please create a channel with 'order' in the name.")
             return
         
         # Rename status channel to show OPEN
@@ -398,26 +398,26 @@ async def close_business(interaction: discord.Interaction):
     await interaction.response.send_message("🔄 Closing business...", ephemeral=True)
     
     try:
-        # Find the status channel (look for channels that start with emoji indicators)
+        # Find or create the status channel
         status_channel = None
         for channel in interaction.guild.channels:
-            if channel.name.startswith("🟢-") or channel.name.startswith("🔴-"):
+            if channel.name.startswith("🟢-") or channel.name.startswith("🔴-") or channel.name == "status":
                 status_channel = channel
                 break
         
+        # If no status channel exists, create one
         if not status_channel:
-            await interaction.edit_original_response(content="❌ Could not find status channel! Please use /open first to create one.")
-            return
+            status_channel = await interaction.guild.create_text_channel("🔴-closed")
         
         # Find the order channel (look for order-here in name)
         order_channel = None
         for channel in interaction.guild.channels:
-            if "order-here" in channel.name.lower():
+            if "order-here" in channel.name.lower() or "order" in channel.name.lower():
                 order_channel = channel
                 break
         
         if not order_channel:
-            await interaction.edit_original_response(content="❌ Could not find order-here channel!")
+            await interaction.edit_original_response(content="❌ Could not find order channel! Please create a channel with 'order' in the name.")
             return
         
         # Rename status channel to show CLOSED
