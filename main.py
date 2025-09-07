@@ -345,16 +345,16 @@ async def open_business(interaction: discord.Interaction):
     await interaction.response.send_message("🔄 Opening business...", ephemeral=True)
     
     try:
-        # Find or create the status channel
+        # Find the status channel by looking for "open" or "closed" in the name
         status_channel = None
         for channel in interaction.guild.channels:
-            if channel.name.startswith("🟢-") or channel.name.startswith("🔴-") or channel.name == "status":
+            if "open" in channel.name.lower() or "closed" in channel.name.lower():
                 status_channel = channel
                 break
         
-        # If no status channel exists, create one
         if not status_channel:
-            status_channel = await interaction.guild.create_text_channel("🟢-open")
+            await interaction.edit_original_response(content="❌ Could not find a channel with 'open' or 'closed' in the name! Please create a status channel first.")
+            return
         
         # Find the order channel (look for order-here in name)
         order_channel = None
@@ -398,16 +398,16 @@ async def close_business(interaction: discord.Interaction):
     await interaction.response.send_message("🔄 Closing business...", ephemeral=True)
     
     try:
-        # Find or create the status channel
+        # Find the status channel by looking for "open" or "closed" in the name
         status_channel = None
         for channel in interaction.guild.channels:
-            if channel.name.startswith("🟢-") or channel.name.startswith("🔴-") or channel.name == "status":
+            if "open" in channel.name.lower() or "closed" in channel.name.lower():
                 status_channel = channel
                 break
         
-        # If no status channel exists, create one
         if not status_channel:
-            status_channel = await interaction.guild.create_text_channel("🔴-closed")
+            await interaction.edit_original_response(content="❌ Could not find a channel with 'open' or 'closed' in the name! Please create a status channel first.")
+            return
         
         # Find the order channel (look for order-here in name)
         order_channel = None
