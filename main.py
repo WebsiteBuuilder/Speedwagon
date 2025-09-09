@@ -437,9 +437,9 @@ async def setlink(interaction: discord.Interaction, provider: str, payment_metho
     if payment_method == "apple_pay":
         # Check if it's just a phone number (digits only, possibly with + at start)
         if url.replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "").isdigit():
-            # Format phone number and create clickable link
+            # Format phone number and create clickable link for iMessage
             clean_number = url.replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
-            clickable_link = f"[Message {url}](https://wa.me/{clean_number})"
+            clickable_link = f"[Message {url}](sms:{clean_number})"
             all_links[provider][payment_method] = clickable_link
         else:
             # If it's already a full URL, use it as is
