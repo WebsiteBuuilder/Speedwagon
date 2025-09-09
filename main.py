@@ -353,6 +353,15 @@ async def angie(interaction: discord.Interaction):
     
     await interaction.response.send_message(embed=embed)
 
+@bot.tree.command(name="enjoy", description="Send a thank-you message to customers")
+async def enjoy(interaction: discord.Interaction):
+    try:
+        await interaction.response.send_message(
+            "🚀 Thanks for ordering with QuikEats! 🍔✨ Don’t forget to snap a pic 📸 and drop it in #vouch 🔥 Make sure to @ a provider to earn points 🎯 … stack them up & redeem for a FREE order 🆓🍕🙌"
+        )
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Error sending message: {e}", ephemeral=True)
+
 @bot.tree.command(name="listcommands", description="List all custom commands")
 async def listcommands(interaction: discord.Interaction):
     custom_commands = load_custom_commands()
