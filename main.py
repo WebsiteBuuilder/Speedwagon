@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import json
+import shutil
 import os
 from dotenv import load_dotenv
 import threading
@@ -18,10 +19,29 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-# Data storage files
-COMMANDS_FILE = 'custom_commands.json'
-LINKS_FILE = 'payment_links.json'
-ENJOY_FILE = 'enjoy_messages.json'
+# Data storage files (configurable directory for persistence)
+DATA_DIR = os.getenv('DATA_DIR', '.')
+try:
+    os.makedirs(DATA_DIR, exist_ok=True)
+except Exception as _e:
+    print(f"⚠️ Could not ensure data directory {DATA_DIR}: {_e}")
+
+COMMANDS_FILE = os.path.join(DATA_DIR, 'custom_commands.json')
+LINKS_FILE = os.path.join(DATA_DIR, 'payment_links.json')
+ENJOY_FILE = os.path.join(DATA_DIR, 'enjoy_messages.json')
+
+# One-time migration: copy legacy files from project root into DATA_DIR if present
+def migrate_legacy_file(legacy_path: str, new_path: str) -> None:
+    try:
+        if os.path.exists(legacy_path) and not os.path.exists(new_path):
+            shutil.copy2(legacy_path, new_path)
+            print(f"✅ Migrated {legacy_path} -> {new_path}")
+    except Exception as e:
+        print(f"⚠️ Migration failed for {legacy_path}: {e}")
+
+migrate_legacy_file('custom_commands.json', COMMANDS_FILE)
+migrate_legacy_file('payment_links.json', LINKS_FILE)
+migrate_legacy_file('enjoy_messages.json', ENJOY_FILE)
 
 # Simple socket-based health server
 def start_health_server():
