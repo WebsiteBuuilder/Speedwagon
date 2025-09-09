@@ -210,7 +210,7 @@ async def neck(interaction: discord.Interaction):
     if links.get("apple_pay"):
         embed.add_field(
             name="🍎 Apple Pay",
-            value=f"[Add to Apple Wallet]({links['apple_pay']})",
+            value=links['apple_pay'],
             inline=False
         )
     
@@ -263,7 +263,7 @@ async def sb(interaction: discord.Interaction):
     if links.get("apple_pay"):
         embed.add_field(
             name="🍎 Apple Pay",
-            value=f"[Add to Apple Wallet]({links['apple_pay']})",
+            value=links['apple_pay'],
             inline=False
         )
     
@@ -316,7 +316,7 @@ async def angie(interaction: discord.Interaction):
     if links.get("apple_pay"):
         embed.add_field(
             name="🍎 Apple Pay",
-            value=f"[Add to Apple Wallet]({links['apple_pay']})",
+            value=links['apple_pay'],
             inline=False
         )
     
@@ -433,8 +433,21 @@ async def setlink(interaction: discord.Interaction, provider: str, payment_metho
             "credit": ""
         }
     
-    # Update the specified payment method for the provider
-    all_links[provider][payment_method] = url
+    # For Apple Pay, convert phone number to clickable link
+    if payment_method == "apple_pay":
+        # Check if it's just a phone number (digits only, possibly with + at start)
+        if url.replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "").isdigit():
+            # Format phone number and create clickable link
+            clean_number = url.replace("+", "").replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
+            clickable_link = f"[Message {url}](https://wa.me/{clean_number})"
+            all_links[provider][payment_method] = clickable_link
+        else:
+            # If it's already a full URL, use it as is
+            all_links[provider][payment_method] = url
+    else:
+        # For other payment methods, use the URL as provided
+        all_links[provider][payment_method] = url
+    
     save_payment_links(all_links)
     
     # Get display names
