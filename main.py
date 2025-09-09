@@ -345,32 +345,29 @@ async def open_business(interaction: discord.Interaction):
     await interaction.response.send_message("🔄 Opening business...", ephemeral=True)
     
     try:
-        # Find the status channel by looking for "open" or "closed" in the name
-        status_channel = None
+        # Find ALL channels with "open" or "closed" in the name and rename them
+        renamed_channels = []
         for channel in interaction.guild.channels:
             if "open" in channel.name.lower() or "closed" in channel.name.lower():
-                status_channel = channel
-                break
+                await channel.edit(name="🟢-open")
+                renamed_channels.append(channel.name)
         
-        if not status_channel:
-            await interaction.edit_original_response(content="❌ Could not find a channel with 'open' or 'closed' in the name! Please create a status channel first.")
+        if not renamed_channels:
+            await interaction.edit_original_response(content="❌ Could not find any channels with 'open' or 'closed' in the name! Please create a status channel first.")
             return
         
-        # Find the order channel (look for order-here in name)
+        # Find the order-here channel specifically
         order_channel = None
         for channel in interaction.guild.channels:
-            if "order-here" in channel.name.lower() or "order" in channel.name.lower():
+            if "order-here" in channel.name.lower():
                 order_channel = channel
                 break
         
         if not order_channel:
-            await interaction.edit_original_response(content="❌ Could not find order channel! Please create a channel with 'order' in the name.")
+            await interaction.edit_original_response(content="❌ Could not find order-here channel!")
             return
         
-        # Rename status channel to show OPEN
-        await status_channel.edit(name="🟢-open")
-        
-        # Make order channel public (remove @everyone overwrite if it exists)
+        # Make order-here channel public (remove @everyone overwrite if it exists)
         everyone_role = interaction.guild.default_role
         overwrites = order_channel.overwrites_for(everyone_role)
         
@@ -379,7 +376,7 @@ async def open_business(interaction: discord.Interaction):
             overwrites.view_channel = None
             await order_channel.set_permissions(everyone_role, overwrite=overwrites)
         
-        await interaction.edit_original_response(content="✅ Business is now **OPEN**! 🟢\n- Status channel renamed to 🟢-open\n- Order channel is now public")
+        await interaction.edit_original_response(content="✅ Business is now **OPEN**! 🟢\n- All status channels renamed to 🟢-open\n- Order-here channel is now public")
         
     except discord.Forbidden:
         await interaction.edit_original_response(content="❌ I don't have permission to modify channels!")
@@ -398,36 +395,33 @@ async def close_business(interaction: discord.Interaction):
     await interaction.response.send_message("🔄 Closing business...", ephemeral=True)
     
     try:
-        # Find the status channel by looking for "open" or "closed" in the name
-        status_channel = None
+        # Find ALL channels with "open" or "closed" in the name and rename them
+        renamed_channels = []
         for channel in interaction.guild.channels:
             if "open" in channel.name.lower() or "closed" in channel.name.lower():
-                status_channel = channel
-                break
+                await channel.edit(name="🔴-closed")
+                renamed_channels.append(channel.name)
         
-        if not status_channel:
-            await interaction.edit_original_response(content="❌ Could not find a channel with 'open' or 'closed' in the name! Please create a status channel first.")
+        if not renamed_channels:
+            await interaction.edit_original_response(content="❌ Could not find any channels with 'open' or 'closed' in the name! Please create a status channel first.")
             return
         
-        # Find the order channel (look for order-here in name)
+        # Find the order-here channel specifically
         order_channel = None
         for channel in interaction.guild.channels:
-            if "order-here" in channel.name.lower() or "order" in channel.name.lower():
+            if "order-here" in channel.name.lower():
                 order_channel = channel
                 break
         
         if not order_channel:
-            await interaction.edit_original_response(content="❌ Could not find order channel! Please create a channel with 'order' in the name.")
+            await interaction.edit_original_response(content="❌ Could not find order-here channel!")
             return
         
-        # Rename status channel to show CLOSED
-        await status_channel.edit(name="🔴-closed")
-        
-        # Make order channel private (deny @everyone view)
+        # Make order-here channel private (deny @everyone view)
         everyone_role = interaction.guild.default_role
         await order_channel.set_permissions(everyone_role, view_channel=False)
         
-        await interaction.edit_original_response(content="✅ Business is now **CLOSED**! 🔴\n- Status channel renamed to 🔴-closed\n- Order channel is now private")
+        await interaction.edit_original_response(content="✅ Business is now **CLOSED**! 🔴\n- All status channels renamed to 🔴-closed\n- Order-here channel is now private")
         
     except discord.Forbidden:
         await interaction.edit_original_response(content="❌ I don't have permission to modify channels!")
