@@ -21,6 +21,7 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 # Data storage files
 COMMANDS_FILE = 'custom_commands.json'
 LINKS_FILE = 'payment_links.json'
+ENJOY_FILE = 'enjoy_messages.json'
 
 # Simple socket-based health server
 def start_health_server():
@@ -107,6 +108,24 @@ def save_payment_links(links_dict):
     with open(LINKS_FILE, 'w') as f:
         json.dump(links_dict, f, indent=2)
 
+# Load enjoy messages
+def load_enjoy_messages():
+    try:
+        with open(ENJOY_FILE, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {
+            "messages": [
+                "🚀 Thanks for ordering with QuikEats! 🍔✨ Don’t forget to snap a pic 📸 and drop it in #vouch 🔥 Make sure to @ a provider to earn points 🎯 … stack them up & redeem for a FREE order 🆓🍕🙌"
+            ],
+            "index": 0
+        }
+
+# Save enjoy messages
+def save_enjoy_messages(enjoy_data):
+    with open(ENJOY_FILE, 'w') as f:
+        json.dump(enjoy_data, f, indent=2)
+
 # Initialize data files
 if not os.path.exists(COMMANDS_FILE):
     save_custom_commands({})
@@ -131,6 +150,44 @@ if not os.path.exists(LINKS_FILE):
             "cashapp": "",
             "credit": ""
         }
+    })
+
+# Initialize enjoy messages file
+if not os.path.exists(ENJOY_FILE):
+    save_enjoy_messages({
+        "messages": [
+            "🚀 Thanks for ordering with QuikEats! 🍔✨ Drop a pic in #vouch 📸🔥 @ a provider to earn points 🎯 — stack them for a FREE order 🆓🍕🙌",
+            "🎉 Appreciate your order with QuikEats! 🍟 Post your meal in #vouch 📸 and @ a provider to rack up points 🎯 — free food awaits 🆓🍕",
+            "🍔 Order complete! Thanks for choosing QuikEats 🙌 Share a pic in #vouch 📸 and @ a provider to earn rewards 🎯",
+            "⚡ QuikEats delivered! 🚗💨 Snap your meal 📸 in #vouch and @ a provider to build points 🎯 — free bites coming soon 🆓",
+            "🔥 You’re awesome! Thanks for ordering QuikEats 😋 Share in #vouch 📸 + @ a provider for points 🎯",
+            "🥳 Big thanks for your QuikEats order! Tap #vouch with a photo 📸 and @ a provider to earn 🎯",
+            "💥 Thanks for rolling with QuikEats! 🍕 Show off in #vouch 📸 — don’t forget to @ a provider for points 🎯",
+            "🍟 Thanks for ordering! Post in #vouch 📸 + @ a provider to collect points 🎯 — FREE order soon 🆓",
+            "✨ QuikEats appreciates you! Share your feast 📸 in #vouch and @ a provider — level up rewards 🎯",
+            "🚀 Order confirmed & delivered! Drop a photo in #vouch 📸, @ a provider, and climb to freebies 🆓",
+            "💚 Thanks from QuikEats! Share in #vouch 📸 + @ a provider to keep stacking 🎯",
+            "📦 Your QuikEats arrived! Post a pic in #vouch 📸 and @ a provider — points incoming 🎯",
+            "🍔 Enjoy! When you can, snap a pic 📸 in #vouch and @ a provider for rewards 🎯",
+            "🙌 Appreciate you! #vouch with a photo 📸 and @ a provider to earn 🎯 — free meal goal 🆓",
+            "🔥 That meal looks good already 😮‍💨 Post in #vouch 📸 + @ a provider — points stack 🎯",
+            "🍕 Thanks for choosing QuikEats! Toss a pic in #vouch 📸 and @ a provider for points 🎯",
+            "💫 Much love! Share your order in #vouch 📸, remember to @ a provider — win rewards 🎯",
+            "🎊 Order in! Drop a quick pic 📸 to #vouch and @ a provider — keep stacking 🎯",
+            "🍜 Thanks again! #vouch 📸 + @ provider = points 🎯 — free meal soon 🆓",
+            "⚡ Speedy eats, speedy thanks! Post in #vouch 📸 and @ a provider to earn 🎯",
+            "🥤 Appreciate the support! Share in #vouch 📸 and tag a provider @ to collect 🎯",
+            "💎 You rock! Show it off in #vouch 📸 and @ a provider — rewards add up 🎯",
+            "🍩 Sweet! Post your order 📸 in #vouch — don’t forget @ a provider 🎯",
+            "🌟 Thanks for the order! Snap 📸 to #vouch, @ a provider — points time 🎯",
+            "🍱 Much appreciated! Share in #vouch 📸 and @provider — climb to FREE 🆓",
+            "🍔 QuikEats thanks you! #vouch 📸 + @ provider — rewards unlocked 🎯",
+            "🚗 Delivered! Post a quick #vouch 📸 + @ provider — score points 🎯",
+            "🥡 Thanks! #vouch 📸 and @ a provider — stacking toward free 🆓",
+            "🍟 Love to see it! Drop #vouch 📸 + @ provider — rewards incoming 🎯",
+            "🎯 Don’t forget: #vouch 📸 + @ provider = points → FREE order 🆓"
+        ],
+        "index": 0
     })
 
 @bot.event
@@ -353,12 +410,24 @@ async def angie(interaction: discord.Interaction):
     
     await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="enjoy", description="Send a thank-you message to customers")
+@bot.tree.command(name="enjoy", description="Send a rotating thank-you message to customers")
 async def enjoy(interaction: discord.Interaction):
     try:
-        await interaction.response.send_message(
-            "🚀 Thanks for ordering with QuikEats! 🍔✨ Don’t forget to snap a pic 📸 and drop it in #vouch 🔥 Make sure to @ a provider to earn points 🎯 … stack them up & redeem for a FREE order 🆓🍕🙌"
-        )
+        # Load messages and pick current one
+        enjoy_data = load_enjoy_messages()
+        messages = enjoy_data.get("messages", [])
+        index = enjoy_data.get("index", 0)
+        if not messages:
+            await interaction.response.send_message("⚠️ No enjoy messages configured.")
+            return
+        message = messages[index % len(messages)]
+
+        # Send the message
+        await interaction.response.send_message(message)
+
+        # Advance the index and save
+        enjoy_data["index"] = (index + 1) % len(messages)
+        save_enjoy_messages(enjoy_data)
     except Exception as e:
         await interaction.response.send_message(f"❌ Error sending message: {e}", ephemeral=True)
 
