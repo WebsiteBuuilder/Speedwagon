@@ -20,11 +20,26 @@ intents.members = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Data storage files (configurable directory for persistence)
-DATA_DIR = os.getenv('DATA_DIR', '.')
+def resolve_data_dir() -> str:
+    # 1) Explicit env var wins
+    env_dir = os.getenv('DATA_DIR')
+    if env_dir:
+        return env_dir
+    # 2) If Railway volume is mounted at /data, use it automatically
+    try:
+        if os.path.isdir('/data'):
+            return '/data'
+    except Exception:
+        pass
+    # 3) Fallback to current directory
+    return '.'
+
+DATA_DIR = resolve_data_dir()
 try:
     os.makedirs(DATA_DIR, exist_ok=True)
 except Exception as _e:
     print(f"⚠️ Could not ensure data directory {DATA_DIR}: {_e}")
+print(f"📦 Using data directory: {DATA_DIR}")
 
 COMMANDS_FILE = os.path.join(DATA_DIR, 'custom_commands.json')
 LINKS_FILE = os.path.join(DATA_DIR, 'payment_links.json')
