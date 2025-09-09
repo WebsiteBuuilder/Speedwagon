@@ -218,6 +218,110 @@ async def neck(interaction: discord.Interaction):
     
     await interaction.response.send_message(embed=embed)
 
+@bot.tree.command(name="sb", description="Get payment method links")
+async def sb(interaction: discord.Interaction):
+    # Load payment links
+    links = load_payment_links()
+    
+    embed = discord.Embed(
+        title="💳 Payment Methods",
+        description="Here are our accepted payment methods:",
+        color=0x0099ff
+    )
+    
+    # Add fields only if links are set
+    if links.get("apple_pay"):
+        embed.add_field(
+            name="🍎 Apple Pay",
+            value=f"[Add to Apple Wallet]({links['apple_pay']})",
+            inline=False
+        )
+    
+    if links.get("zelle"):
+        embed.add_field(
+            name="💸 Zelle",
+            value=f"[Send to Zelle]({links['zelle']})",
+            inline=False
+        )
+    
+    if links.get("cashapp"):
+        embed.add_field(
+            name="📱 Cash App",
+            value=f"[Send via Cash App]({links['cashapp']})",
+            inline=False
+        )
+    
+    if links.get("credit"):
+        embed.add_field(
+            name="💳 Credit/Debit",
+            value=f"[Pay Online]({links['credit']})",
+            inline=False
+        )
+    
+    # If no links are set, show a message
+    if not any(links.values()):
+        embed.add_field(
+            name="⚠️ No Payment Links Set",
+            value="Contact an admin to set up payment methods using `/setlink`",
+            inline=False
+        )
+    
+    embed.set_footer(text="Contact support if you need help with payment!")
+    
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="angie", description="Get payment method links")
+async def angie(interaction: discord.Interaction):
+    # Load payment links
+    links = load_payment_links()
+    
+    embed = discord.Embed(
+        title="💳 Payment Methods",
+        description="Here are our accepted payment methods:",
+        color=0x0099ff
+    )
+    
+    # Add fields only if links are set
+    if links.get("apple_pay"):
+        embed.add_field(
+            name="🍎 Apple Pay",
+            value=f"[Add to Apple Wallet]({links['apple_pay']})",
+            inline=False
+        )
+    
+    if links.get("zelle"):
+        embed.add_field(
+            name="💸 Zelle",
+            value=f"[Send to Zelle]({links['zelle']})",
+            inline=False
+        )
+    
+    if links.get("cashapp"):
+        embed.add_field(
+            name="📱 Cash App",
+            value=f"[Send via Cash App]({links['cashapp']})",
+            inline=False
+        )
+    
+    if links.get("credit"):
+        embed.add_field(
+            name="💳 Credit/Debit",
+            value=f"[Pay Online]({links['credit']})",
+            inline=False
+        )
+    
+    # If no links are set, show a message
+    if not any(links.values()):
+        embed.add_field(
+            name="⚠️ No Payment Links Set",
+            value="Contact an admin to set up payment methods using `/setlink`",
+            inline=False
+        )
+    
+    embed.set_footer(text="Contact support if you need help with payment!")
+    
+    await interaction.response.send_message(embed=embed)
+
 @bot.tree.command(name="listcommands", description="List all custom commands")
 async def listcommands(interaction: discord.Interaction):
     custom_commands = load_custom_commands()
