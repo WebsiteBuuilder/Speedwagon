@@ -82,10 +82,24 @@ def load_payment_links():
             return json.load(f)
     except FileNotFoundError:
         return {
-            "apple_pay": "",
-            "zelle": "",
-            "cashapp": "",
-            "credit": ""
+            "neck": {
+                "apple_pay": "",
+                "zelle": "",
+                "cashapp": "",
+                "credit": ""
+            },
+            "sb": {
+                "apple_pay": "",
+                "zelle": "",
+                "cashapp": "",
+                "credit": ""
+            },
+            "angie": {
+                "apple_pay": "",
+                "zelle": "",
+                "cashapp": "",
+                "credit": ""
+            }
         }
 
 # Save payment links
@@ -99,10 +113,24 @@ if not os.path.exists(COMMANDS_FILE):
 
 if not os.path.exists(LINKS_FILE):
     save_payment_links({
-        "apple_pay": "",
-        "zelle": "",
-        "cashapp": "",
-        "credit": ""
+        "neck": {
+            "apple_pay": "",
+            "zelle": "",
+            "cashapp": "",
+            "credit": ""
+        },
+        "sb": {
+            "apple_pay": "",
+            "zelle": "",
+            "cashapp": "",
+            "credit": ""
+        },
+        "angie": {
+            "apple_pay": "",
+            "zelle": "",
+            "cashapp": "",
+            "credit": ""
+        }
     })
 
 @bot.event
@@ -169,10 +197,11 @@ async def editcommand(interaction: discord.Interaction, command_name: str, respo
 @bot.tree.command(name="neck", description="Get payment method links")
 async def neck(interaction: discord.Interaction):
     # Load payment links
-    links = load_payment_links()
+    all_links = load_payment_links()
+    links = all_links.get("neck", {})
     
     embed = discord.Embed(
-        title="💳 Payment Methods",
+        title="💳 Payment Methods - Neck",
         description="Here are our accepted payment methods:",
         color=0x0099ff
     )
@@ -221,10 +250,11 @@ async def neck(interaction: discord.Interaction):
 @bot.tree.command(name="sb", description="Get payment method links")
 async def sb(interaction: discord.Interaction):
     # Load payment links
-    links = load_payment_links()
+    all_links = load_payment_links()
+    links = all_links.get("sb", {})
     
     embed = discord.Embed(
-        title="💳 Payment Methods",
+        title="💳 Payment Methods - SB",
         description="Here are our accepted payment methods:",
         color=0x0099ff
     )
@@ -273,10 +303,11 @@ async def sb(interaction: discord.Interaction):
 @bot.tree.command(name="angie", description="Get payment method links")
 async def angie(interaction: discord.Interaction):
     # Load payment links
-    links = load_payment_links()
+    all_links = load_payment_links()
+    links = all_links.get("angie", {})
     
     embed = discord.Embed(
-        title="💳 Payment Methods",
+        title="💳 Payment Methods - Angie",
         description="Here are our accepted payment methods:",
         color=0x0099ff
     )
@@ -368,16 +399,22 @@ async def deletecommand(interaction: discord.Interaction, command_name: str):
 
 @bot.tree.command(name="setlink", description="Set a payment method link (Provider role only)")
 @app_commands.describe(
+    provider="Which provider to set links for (neck, sb, angie)",
     payment_method="Which payment method to set (apple_pay, zelle, cashapp, credit)",
     url="The URL/link for this payment method"
 )
+@app_commands.choices(provider=[
+    app_commands.Choice(name="Neck", value="neck"),
+    app_commands.Choice(name="SB", value="sb"),
+    app_commands.Choice(name="Angie", value="angie")
+])
 @app_commands.choices(payment_method=[
     app_commands.Choice(name="Apple Pay", value="apple_pay"),
     app_commands.Choice(name="Zelle", value="zelle"),
     app_commands.Choice(name="Cash App", value="cashapp"),
     app_commands.Choice(name="Credit/Debit", value="credit")
 ])
-async def setlink(interaction: discord.Interaction, payment_method: str, url: str):
+async def setlink(interaction: discord.Interaction, provider: str, payment_method: str, url: str):
     # Check if user has Provider role
     provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
     if not provider_role or provider_role not in interaction.user.roles:
@@ -385,13 +422,27 @@ async def setlink(interaction: discord.Interaction, payment_method: str, url: st
         return
     
     # Load existing links
-    links = load_payment_links()
+    all_links = load_payment_links()
     
-    # Update the specified payment method
-    links[payment_method] = url
-    save_payment_links(links)
+    # Make sure the provider exists in the links
+    if provider not in all_links:
+        all_links[provider] = {
+            "apple_pay": "",
+            "zelle": "",
+            "cashapp": "",
+            "credit": ""
+        }
     
-    # Get display name for payment method
+    # Update the specified payment method for the provider
+    all_links[provider][payment_method] = url
+    save_payment_links(all_links)
+    
+    # Get display names
+    provider_names = {
+        "neck": "Neck",
+        "sb": "SB",
+        "angie": "Angie"
+    }
     method_names = {
         "apple_pay": "Apple Pay",
         "zelle": "Zelle", 
@@ -400,7 +451,7 @@ async def setlink(interaction: discord.Interaction, payment_method: str, url: st
     }
     
     await interaction.response.send_message(
-        f"✅ {method_names[payment_method]} link has been set!\n`{url}`", 
+        f"✅ {method_names[payment_method]} link has been set for {provider_names[provider]}!\n`{url}`", 
         ephemeral=True
     )
 
@@ -413,14 +464,19 @@ async def viewlinks(interaction: discord.Interaction):
         return
     
     # Load payment links
-    links = load_payment_links()
+    all_links = load_payment_links()
     
     embed = discord.Embed(
         title="🔗 Current Payment Links",
-        description="Here are the currently set payment links:",
+        description="Here are the currently set payment links for all providers:",
         color=0x00ff00
     )
     
+    provider_names = {
+        "neck": "Neck",
+        "sb": "SB",
+        "angie": "Angie"
+    }
     method_names = {
         "apple_pay": "🍎 Apple Pay",
         "zelle": "💸 Zelle",
@@ -428,12 +484,26 @@ async def viewlinks(interaction: discord.Interaction):
         "credit": "💳 Credit/Debit"
     }
     
-    for method, name in method_names.items():
-        link = links.get(method, "")
-        if link:
-            embed.add_field(name=name, value=f"`{link}`", inline=False)
+    for provider, provider_display in provider_names.items():
+        provider_links = all_links.get(provider, {})
+        if any(provider_links.values()):
+            embed.add_field(
+                name=f"**{provider_display}**", 
+                value="", 
+                inline=False
+            )
+            for method, method_display in method_names.items():
+                link = provider_links.get(method, "")
+                if link:
+                    embed.add_field(name=method_display, value=f"`{link}`", inline=False)
+                else:
+                    embed.add_field(name=method_display, value="*Not set*", inline=False)
         else:
-            embed.add_field(name=name, value="*Not set*", inline=False)
+            embed.add_field(
+                name=f"**{provider_display}**", 
+                value="*No links set*", 
+                inline=False
+            )
     
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
