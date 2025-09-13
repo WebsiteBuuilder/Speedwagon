@@ -315,7 +315,7 @@ async def neck(interaction: discord.Interaction):
     
     if links.get("cashapp"):
         embed.add_field(
-            name="📱 Cash App",
+            name="📱 Cash App (Add 25¢ for fees)",
             value=f"[Send via Cash App]({links['cashapp']})",
             inline=False
         )
@@ -368,7 +368,7 @@ async def sb(interaction: discord.Interaction):
     
     if links.get("cashapp"):
         embed.add_field(
-            name="📱 Cash App",
+            name="📱 Cash App (Add 25¢ for fees)",
             value=f"[Send via Cash App]({links['cashapp']})",
             inline=False
         )
@@ -421,7 +421,7 @@ async def angie(interaction: discord.Interaction):
     
     if links.get("cashapp"):
         embed.add_field(
-            name="📱 Cash App",
+            name="📱 Cash App (Add 25¢ for fees)",
             value=f"[Send via Cash App]({links['cashapp']})",
             inline=False
         )
