@@ -447,7 +447,7 @@ async def angie(interaction: discord.Interaction):
 
 @bot.tree.command(name="enjoy", description="Send a personalized thank-you message to a customer")
 @app_commands.describe(
-    customer="The customer to thank (mention them)"
+    customer="The customer to thank (mention them with @)"
 )
 async def enjoy(interaction: discord.Interaction, customer: discord.Member):
     try:
