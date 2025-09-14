@@ -455,15 +455,20 @@ async def enjoy(interaction: discord.Interaction, customer: discord.Member):
         enjoy_data = load_enjoy_messages()
         messages = enjoy_data.get("messages", [])
         index = enjoy_data.get("index", 0)
+
+        print(f"DEBUG: Loaded {len(messages)} messages, current index: {index}")  # Debug log
+
         if not messages:
             await interaction.response.send_message("⚠️ No enjoy messages configured.")
             return
 
         # Get the raw message template
         message_template = messages[index % len(messages)]
+        print(f"DEBUG: Raw message template: {message_template}")  # Debug log
 
         # Replace (user) placeholder with the customer's mention
         personalized_message = message_template.replace("(user)", customer.mention)
+        print(f"DEBUG: Personalized message: {personalized_message}")  # Debug log
 
         # Send the personalized message
         await interaction.response.send_message(personalized_message)
@@ -471,7 +476,9 @@ async def enjoy(interaction: discord.Interaction, customer: discord.Member):
         # Advance the index and save
         enjoy_data["index"] = (index + 1) % len(messages)
         save_enjoy_messages(enjoy_data)
+        print(f"DEBUG: Advanced index to: {enjoy_data['index']}")  # Debug log
     except Exception as e:
+        print(f"ERROR in enjoy command: {e}")  # Debug log
         await interaction.response.send_message(f"❌ Error sending message: {e}", ephemeral=True)
 
 @bot.tree.command(name="listcommands", description="List all custom commands")
