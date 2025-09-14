@@ -466,7 +466,7 @@ async def enjoy(interaction: discord.Interaction, customer: discord.Member):
         message_template = messages[index % len(messages)]
         print(f"DEBUG: Raw message template: {message_template}")  # Debug log
 
-        # Replace (user) placeholder with the customer's mention
+        # Replace (user) placeholder with the customer's mention (creates @ping)
         personalized_message = message_template.replace("(user)", customer.mention)
         print(f"DEBUG: Personalized message: {personalized_message}")  # Debug log
 
