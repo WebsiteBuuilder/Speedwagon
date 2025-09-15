@@ -447,10 +447,32 @@ async def angie(interaction: discord.Interaction):
 
 @bot.tree.command(name="enjoy", description="Send a personalized thank-you message to a customer")
 @app_commands.describe(
-    customer="The customer to thank (mention them with @)"
+    customer="The customer to thank (type their name or mention them with @)"
 )
-async def enjoy(interaction: discord.Interaction, customer: discord.Member):
+async def enjoy(interaction: discord.Interaction, customer: str):
     try:
+        # Find the user by name or mention
+        target_user = None
+
+        # If it's a mention (starts with <@), try to extract the user ID
+        if customer.startswith('<@') and customer.endswith('>'):
+            try:
+                # Extract user ID from mention
+                user_id = int(customer.strip('<@!&>'))
+                target_user = interaction.guild.get_member(user_id)
+            except (ValueError, AttributeError):
+                pass
+        else:
+            # Look up by display name or username
+            for member in interaction.guild.members:
+                if member.display_name.lower() == customer.lower() or member.name.lower() == customer.lower():
+                    target_user = member
+                    break
+
+        if not target_user:
+            await interaction.response.send_message(f"❌ Could not find user '{customer}'. Please type their exact name or mention them with @", ephemeral=True)
+            return
+
         # Load messages and pick current one
         enjoy_data = load_enjoy_messages()
         messages = enjoy_data.get("messages", [])
@@ -467,7 +489,7 @@ async def enjoy(interaction: discord.Interaction, customer: discord.Member):
         print(f"DEBUG: Raw message template: {message_template}")  # Debug log
 
         # Replace (user) placeholder with the customer's mention (creates @ping)
-        personalized_message = message_template.replace("(user)", customer.mention)
+        personalized_message = message_template.replace("(user)", target_user.mention)
         print(f"DEBUG: Personalized message: {personalized_message}")  # Debug log
 
         # Send the personalized message
@@ -479,7 +501,7 @@ async def enjoy(interaction: discord.Interaction, customer: discord.Member):
         print(f"DEBUG: Advanced index to: {enjoy_data['index']}")  # Debug log
     except Exception as e:
         print(f"ERROR in enjoy command: {e}")  # Debug log
-        await interaction.response.send_message(f"❌ Error: Please mention a valid user (not a role). Use `/enjoy customer:@username`", ephemeral=True)
+        await interaction.response.send_message(f"❌ Error: {str(e)}", ephemeral=True)
 
 @bot.tree.command(name="listcommands", description="List all custom commands")
 async def listcommands(interaction: discord.Interaction):
