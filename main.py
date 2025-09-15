@@ -567,10 +567,16 @@ async def enjoy(interaction: discord.Interaction, customer: str):
         vouch_channel = None
         casino_channel = None
         try:
+            # Prefer exact channel name 'vouch-📸', then any channel containing 'vouch'
             vouch_channel = next(
-                (c for c in interaction.guild.text_channels if c.name.lower() == 'vouch'),
+                (c for c in interaction.guild.text_channels if c.name == 'vouch-📸'),
                 None
             )
+            if vouch_channel is None:
+                vouch_channel = next(
+                    (c for c in interaction.guild.text_channels if 'vouch' in c.name.lower()),
+                    None
+                )
             # Exact name first, then any channel containing 'casino' (ignoring suits)
             casino_channel = next(
                 (c for c in interaction.guild.text_channels if c.name == '♠♥casino♣♦'),
@@ -586,6 +592,7 @@ async def enjoy(interaction: discord.Interaction, customer: str):
 
         if vouch_channel is not None:
             personalized_message = personalized_message.replace('#vouch', f'<#{vouch_channel.id}>')
+            personalized_message = personalized_message.replace('#vouch-📸', f'<#{vouch_channel.id}>')
 
         if casino_channel is not None:
             personalized_message = personalized_message.replace('#casino', f'<#{casino_channel.id}>')
