@@ -479,7 +479,7 @@ async def enjoy(interaction: discord.Interaction, customer: discord.Member):
         print(f"DEBUG: Advanced index to: {enjoy_data['index']}")  # Debug log
     except Exception as e:
         print(f"ERROR in enjoy command: {e}")  # Debug log
-        await interaction.response.send_message(f"❌ Error sending message: {e}", ephemeral=True)
+        await interaction.response.send_message(f"❌ Error: Please mention a valid user (not a role). Use `/enjoy customer:@username`", ephemeral=True)
 
 @bot.tree.command(name="listcommands", description="List all custom commands")
 async def listcommands(interaction: discord.Interaction):
