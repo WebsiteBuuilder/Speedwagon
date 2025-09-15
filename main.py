@@ -562,6 +562,35 @@ async def enjoy(interaction: discord.Interaction, customer: str):
 
         # Replace (user) placeholder with the customer's mention (creates @ping)
         personalized_message = message_template.replace("(user)", target_user.mention)
+
+        # Convert #vouch and #casino placeholders into channel mentions
+        vouch_channel = None
+        casino_channel = None
+        try:
+            vouch_channel = next(
+                (c for c in interaction.guild.text_channels if c.name.lower() == 'vouch'),
+                None
+            )
+            # Exact name first, then any channel containing 'casino' (ignoring suits)
+            casino_channel = next(
+                (c for c in interaction.guild.text_channels if c.name == '♠♥casino♣♦'),
+                None
+            )
+            if casino_channel is None:
+                casino_channel = next(
+                    (c for c in interaction.guild.text_channels if 'casino' in c.name.lower()),
+                    None
+                )
+        except Exception:
+            pass
+
+        if vouch_channel is not None:
+            personalized_message = personalized_message.replace('#vouch', f'<#{vouch_channel.id}>')
+
+        if casino_channel is not None:
+            personalized_message = personalized_message.replace('#casino', f'<#{casino_channel.id}>')
+            personalized_message = personalized_message.replace('#♠♥casino♣♦', f'<#{casino_channel.id}>')
+
         print(f"DEBUG: Personalized message: {personalized_message}")  # Debug log
 
         # Send the personalized message
