@@ -22,19 +22,25 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 # Blocklist for users whose commands should be ignored
 BLOCKED_USER_IDS = {1405894979095892108}
 
+
 def is_blocked_user(interaction: discord.Interaction) -> bool:
     try:
         return interaction.user is not None and interaction.user.id in BLOCKED_USER_IDS
     except Exception:
         return False
 
-def deny_blocked_users(interaction: discord.Interaction) -> bool:
+
+def _raise_if_blocked(interaction: discord.Interaction) -> bool:
+    """Common helper that raises when a blocked user invokes a slash command."""
     if is_blocked_user(interaction):
         raise app_commands.CheckFailure("Blocked user")
     return True
 
-# Apply global check for all app (slash) commands
-bot.tree.add_check(deny_blocked_users)
+
+@bot.tree.interaction_check
+async def enforce_blocked_users(interaction: discord.Interaction) -> bool:
+    """Global check that blocks specific users from slash commands."""
+    return _raise_if_blocked(interaction)
 
 # Data storage files (configurable directory for persistence)
 def resolve_data_dir() -> str:
