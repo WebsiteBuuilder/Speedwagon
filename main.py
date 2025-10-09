@@ -44,6 +44,7 @@ print(f"📦 Using data directory: {DATA_DIR}")
 COMMANDS_FILE = os.path.join(DATA_DIR, 'custom_commands.json')
 LINKS_FILE = os.path.join(DATA_DIR, 'payment_links.json')
 ENJOY_FILE = os.path.join(DATA_DIR, 'enjoy_messages.json')
+BARRED_USERS_FILE = os.path.join(DATA_DIR, 'barred_users.json')
 
 # Built-in default /enjoy messages (50), using (user) placeholder and #vouch/#casino
 DEFAULT_ENJOY_MESSAGES = [
@@ -173,6 +174,27 @@ def load_custom_commands():
             return json.load(f)
     except FileNotFoundError:
         return {}
+
+
+def load_barred_users() -> set[str]:
+    """Load barred user IDs stored in the barred users config."""
+    ensure_barred_users_config_exists()
+    with open(BARRED_USERS_FILE, 'r') as f:
+        data = json.load(f)
+        return set(data.get("barred_users", []))
+
+
+def is_user_barred(user_id: int) -> bool:
+    """Return True if the given user_id is present in the barred users config."""
+    barred_ids = load_barred_users()
+    return str(user_id) in barred_ids
+
+
+def ensure_barred_users_config_exists():
+    """Ensure a JSON file exists to store barred user IDs."""
+    if not os.path.exists(BARRED_USERS_FILE):
+        with open(BARRED_USERS_FILE, 'w') as f:
+            json.dump({"barred_users": []}, f, indent=2)
 
 # Save custom commands
 def save_custom_commands(commands_dict):
@@ -312,6 +334,10 @@ async def on_ready():
     response="What the command should respond with"
 )
 async def createcommand(interaction: discord.Interaction, command_name: str, response: str):
+    if is_user_barred(interaction.user.id):
+        await interaction.response.send_message("❌ You are barred from using this command!", ephemeral=True)
+        return
+
     # Check if user has Provider role
     provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
     if not provider_role or provider_role not in interaction.user.roles:
@@ -338,6 +364,10 @@ async def createcommand(interaction: discord.Interaction, command_name: str, res
     response="New response for the command"
 )
 async def editcommand(interaction: discord.Interaction, command_name: str, response: str):
+    if is_user_barred(interaction.user.id):
+        await interaction.response.send_message("❌ You are barred from using this command!", ephemeral=True)
+        return
+
     # Check if user has Provider role
     provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
     if not provider_role or provider_role not in interaction.user.roles:
@@ -637,6 +667,10 @@ async def listcommands(interaction: discord.Interaction):
     command_name="Name of the command to delete"
 )
 async def deletecommand(interaction: discord.Interaction, command_name: str):
+    if is_user_barred(interaction.user.id):
+        await interaction.response.send_message("❌ You are barred from using this command!", ephemeral=True)
+        return
+
     # Check if user has Provider role
     provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
     if not provider_role or provider_role not in interaction.user.roles:
@@ -673,6 +707,10 @@ async def deletecommand(interaction: discord.Interaction, command_name: str):
     app_commands.Choice(name="Credit/Debit", value="credit")
 ])
 async def setlink(interaction: discord.Interaction, provider: str, payment_method: str, url: str):
+    if is_user_barred(interaction.user.id):
+        await interaction.response.send_message("❌ You are barred from using this command!", ephemeral=True)
+        return
+
     # Check if user has Provider role
     provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
     if not provider_role or provider_role not in interaction.user.roles:
@@ -728,6 +766,10 @@ async def setlink(interaction: discord.Interaction, provider: str, payment_metho
 
 @bot.tree.command(name="viewlinks", description="View all current payment links (Provider role only)")
 async def viewlinks(interaction: discord.Interaction):
+    if is_user_barred(interaction.user.id):
+        await interaction.response.send_message("❌ You are barred from using this command!", ephemeral=True)
+        return
+
     # Check if user has Provider role
     provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
     if not provider_role or provider_role not in interaction.user.roles:
@@ -780,6 +822,10 @@ async def viewlinks(interaction: discord.Interaction):
 
 @bot.tree.command(name="open", description="Open the business - rename status channel and make order channel public (Provider role only)")
 async def open_business(interaction: discord.Interaction):
+    if is_user_barred(interaction.user.id):
+        await interaction.response.send_message("❌ You are barred from using this command!", ephemeral=True)
+        return
+
     # Check if user has Provider role
     provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
     if not provider_role or provider_role not in interaction.user.roles:
@@ -830,6 +876,10 @@ async def open_business(interaction: discord.Interaction):
 
 @bot.tree.command(name="close", description="Close the business - rename status channel and make order channel private (Provider role only)")
 async def close_business(interaction: discord.Interaction):
+    if is_user_barred(interaction.user.id):
+        await interaction.response.send_message("❌ You are barred from using this command!", ephemeral=True)
+        return
+
     # Check if user has Provider role
     provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
     if not provider_role or provider_role not in interaction.user.roles:
