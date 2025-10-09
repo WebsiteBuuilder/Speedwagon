@@ -19,6 +19,23 @@ intents.members = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+# Blocklist for users whose commands should be ignored
+BLOCKED_USER_IDS = {1405894979095892108}
+
+def is_blocked_user(interaction: discord.Interaction) -> bool:
+    try:
+        return interaction.user is not None and interaction.user.id in BLOCKED_USER_IDS
+    except Exception:
+        return False
+
+def deny_blocked_users(interaction: discord.Interaction) -> bool:
+    if is_blocked_user(interaction):
+        raise app_commands.CheckFailure("Blocked user")
+    return True
+
+# Apply global check for all app (slash) commands
+bot.tree.add_check(deny_blocked_users)
+
 # Data storage files (configurable directory for persistence)
 def resolve_data_dir() -> str:
     # 1) Explicit env var wins
@@ -951,6 +968,9 @@ async def close_business(interaction: discord.Interaction):
 # Dynamic command handler for custom commands
 @bot.event
 async def on_interaction(interaction):
+    # Ignore all interactions from blocked users
+    if is_blocked_user(interaction):
+        return
     if interaction.type == discord.InteractionType.application_command:
         try:
             if is_user_barred(interaction.user.id):
@@ -982,6 +1002,14 @@ async def on_command_error(ctx, error):
         pass  # Ignore command not found errors
     else:
         print(f"Error: {error}")
+
+# App command (slash command) error handler
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error):
+    # Silently ignore blocked users so their interactions are not acknowledged
+    if isinstance(error, app_commands.CheckFailure):
+        if is_blocked_user(interaction):
+            return
 
 # Run the bot
 if __name__ == "__main__":
