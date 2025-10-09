@@ -9,6 +9,9 @@ A Discord bot for managing customer interactions, vouch points, and custom comma
 - **`/neck`** - Display payment method links (Apple Pay, Zelle, Cash App, etc.)
 - **`/points`** - Check your current vouch points
 - **`/editcommand`** - Create/edit custom commands (Provider role only)
+- **`/banprovider`** - Bar a provider from using privileged commands
+- **`/unbanprovider`** - Allow a previously barred provider to use commands again
+- **`/listbarredproviders`** - View all barred provider IDs
 
 ### 🔧 Custom Commands System
 - Providers can create unlimited custom commands
