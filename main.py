@@ -45,6 +45,9 @@ COMMANDS_FILE = os.path.join(DATA_DIR, 'custom_commands.json')
 LINKS_FILE = os.path.join(DATA_DIR, 'payment_links.json')
 ENJOY_FILE = os.path.join(DATA_DIR, 'enjoy_messages.json')
 BARRED_USERS_FILE = os.path.join(DATA_DIR, 'barred_users.json')
+DEFAULT_BARRED_USERS: tuple[str, ...] = (
+    "1405894979095892108",
+)
 
 # Built-in default /enjoy messages (50), using (user) placeholder and #vouch/#casino
 DEFAULT_ENJOY_MESSAGES = [
@@ -196,6 +199,23 @@ def ensure_barred_users_config_exists():
         with open(BARRED_USERS_FILE, 'w') as f:
             json.dump({"barred_users": []}, f, indent=2)
 
+
+def save_barred_users(user_ids: set[str]) -> None:
+    """Persist the provided set of barred user IDs to disk."""
+    ensure_barred_users_config_exists()
+    with open(BARRED_USERS_FILE, 'w') as f:
+        json.dump({"barred_users": sorted(user_ids)}, f, indent=2)
+
+
+def add_barred_user(user_id: int | str) -> None:
+    """Add a user ID to the barred list if it is not already present."""
+    user_id_str = str(user_id)
+    barred_users = load_barred_users()
+    if user_id_str not in barred_users:
+        barred_users.add(user_id_str)
+        save_barred_users(barred_users)
+        print(f"🚫 Added barred user ID: {user_id_str}")
+
 # Save custom commands
 def save_custom_commands(commands_dict):
     with open(COMMANDS_FILE, 'w') as f:
@@ -318,6 +338,11 @@ if not os.path.exists(ENJOY_FILE):
         ],
         "index": 0
     })
+
+# Ensure barred users config exists and seed default barred IDs
+ensure_barred_users_config_exists()
+for default_barred_id in DEFAULT_BARRED_USERS:
+    add_barred_user(default_barred_id)
 
 @bot.event
 async def on_ready():
@@ -927,17 +952,26 @@ async def close_business(interaction: discord.Interaction):
 @bot.event
 async def on_interaction(interaction):
     if interaction.type == discord.InteractionType.application_command:
+        try:
+            if is_user_barred(interaction.user.id):
+                command_info = getattr(interaction, "data", {}) or {}
+                command_name = command_info.get('name', 'unknown')
+                print(f"🚫 Ignoring command '{command_name}' from barred user {interaction.user.id}")
+                return
+        except Exception as e:
+            print(f"⚠️ Failed to evaluate barred user status: {e}")
+
         command_name = interaction.data['name']
-        
+
         # Check if it's a custom command
         custom_commands = load_custom_commands()
         if command_name in custom_commands:
             response = custom_commands[command_name]
             await interaction.response.send_message(response)
             return
-    
-    # Let other interactions pass through
-    pass
+
+    # Let other interactions pass through to default handler
+    await bot.process_application_commands(interaction)
 
 # Error handling
 @bot.event
