@@ -250,12 +250,9 @@ def add_barred_user(user_id: int | str) -> None:
 
 # Global command tree check to block barred users
 async def global_barred_user_check(interaction: discord.Interaction) -> bool:
-    """
-    Global check for all slash commands. Returns False to block barred users.
-    This is registered with bot.tree.add_check() below.
-    """
-    if is_user_barred(interaction.user.id):
-        # Return False to prevent command execution
+    """Global slash-command check that blocks any barred user."""
+    if interaction.user and is_user_barred(interaction.user.id):
+        # Returning False prevents the command from executing.
         return False
     return True
 
@@ -388,8 +385,8 @@ ensure_barred_users_config_exists()
 for default_barred_id in DEFAULT_BARRED_USERS:
     add_barred_user(default_barred_id)
 
-# Register global check to block barred users from ALL slash commands
-bot.tree.add_check(global_barred_user_check)
+# Register the check via the tree's interaction_check hook
+bot.tree.interaction_check = global_barred_user_check
 print("✅ Registered global barred user check for command tree")
 
 @bot.event
