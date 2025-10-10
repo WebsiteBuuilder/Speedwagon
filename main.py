@@ -141,25 +141,33 @@ def start_health_server():
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(('0.0.0.0', port))
-        sock.listen(1)
+        sock.listen(5)  # Increased backlog
         
         print(f"✅ Health server listening on port {port}")
         
         # Start server in background
         def run_server():
-            try:
-                while True:
+            while True:
+                try:
                     conn, addr = sock.accept()
-                    data = conn.recv(1024).decode()
-                    if 'GET /health' in data:
-                        response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOK"
-                        conn.send(response.encode())
-                    else:
-                        response = "HTTP/1.1 404 Not Found\r\n\r\n"
-                        conn.send(response.encode())
-                    conn.close()
-            except Exception as e:
-                print(f"Health server error: {e}")
+                    conn.settimeout(1.0)  # 1 second timeout
+                    try:
+                        data = conn.recv(1024).decode('utf-8', errors='ignore')
+                        # Respond to ANY request with 200 OK (health checks can vary)
+                        response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nOK"
+                        conn.sendall(response.encode())
+                    except socket.timeout:
+                        pass
+                    except Exception as e:
+                        print(f"⚠️ Health request error: {e}")
+                    finally:
+                        try:
+                            conn.close()
+                        except:
+                            pass
+                except Exception as e:
+                    print(f"⚠️ Health server accept error: {e}")
+                    time.sleep(0.1)  # Brief pause on error
         
         thread = threading.Thread(target=run_server, daemon=True)
         thread.start()
@@ -1051,17 +1059,18 @@ if __name__ == "__main__":
     
     print(f"✅ Discord token found (length: {len(token)})")
     
-    # Start health check server
+    # Start health check server FIRST before anything else
     print("Starting health check server...")
     health_ready = start_health_server()
     
     if health_ready:
         print("✅ Health check server is ready")
+        # Give health server a moment to fully bind and start accepting connections
+        time.sleep(1)
     else:
         print("⚠️ Health check server failed, but continuing...")
-    
-    # Give health server a moment to fully start
-    time.sleep(3)
+        # Still sleep briefly to allow any partial startup
+        time.sleep(0.5)
     
     # Start the bot
     print("Connecting to Discord...")
