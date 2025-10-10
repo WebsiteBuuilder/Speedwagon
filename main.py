@@ -239,6 +239,19 @@ def add_barred_user(user_id: int | str) -> None:
         save_barred_users(barred_users)
         print(f"🚫 Added barred user ID: {user_id_str}")
 
+
+# Global command tree check to block barred users
+async def global_barred_user_check(interaction: discord.Interaction) -> bool:
+    """
+    Global check for all slash commands. Returns False to block barred users.
+    This is registered with bot.tree.add_check() below.
+    """
+    if is_user_barred(interaction.user.id):
+        # Return False to prevent command execution
+        return False
+    return True
+
+
 # Save custom commands
 def save_custom_commands(commands_dict):
     with open(COMMANDS_FILE, 'w') as f:
@@ -367,6 +380,10 @@ ensure_barred_users_config_exists()
 for default_barred_id in DEFAULT_BARRED_USERS:
     add_barred_user(default_barred_id)
 
+# Register global check to block barred users from ALL slash commands
+bot.tree.add_check(global_barred_user_check)
+print("✅ Registered global barred user check for command tree")
+
 @bot.event
 async def on_ready():
     print(f'{bot.user} has connected to Discord!')
@@ -438,6 +455,10 @@ async def editcommand(interaction: discord.Interaction, command_name: str, respo
 
 @bot.tree.command(name="neck", description="Get payment method links")
 async def neck(interaction: discord.Interaction):
+    # LAYER 4 DEFENSE: Individual command guard
+    if is_user_barred(interaction.user.id):
+        return
+    
     # Load payment links
     all_links = load_payment_links()
     links = all_links.get("neck", {})
@@ -491,6 +512,10 @@ async def neck(interaction: discord.Interaction):
 
 @bot.tree.command(name="sb", description="Get payment method links")
 async def sb(interaction: discord.Interaction):
+    # LAYER 4 DEFENSE: Individual command guard
+    if is_user_barred(interaction.user.id):
+        return
+    
     # Load payment links
     all_links = load_payment_links()
     links = all_links.get("sb", {})
@@ -544,6 +569,10 @@ async def sb(interaction: discord.Interaction):
 
 @bot.tree.command(name="angie", description="Get payment method links")
 async def angie(interaction: discord.Interaction):
+    # LAYER 4 DEFENSE: Individual command guard
+    if is_user_barred(interaction.user.id):
+        return
+    
     # Load payment links
     all_links = load_payment_links()
     links = all_links.get("angie", {})
@@ -600,6 +629,10 @@ async def angie(interaction: discord.Interaction):
     customer="The customer to thank (type their name or mention them with @)"
 )
 async def enjoy(interaction: discord.Interaction, customer: str):
+    # LAYER 4 DEFENSE: Individual command guard
+    if is_user_barred(interaction.user.id):
+        return
+    
     try:
         # Find the user by name or mention
         target_user = None
@@ -691,6 +724,10 @@ async def enjoy(interaction: discord.Interaction, customer: str):
 
 @bot.tree.command(name="listcommands", description="List all custom commands")
 async def listcommands(interaction: discord.Interaction):
+    # LAYER 4 DEFENSE: Individual command guard
+    if is_user_barred(interaction.user.id):
+        return
+    
     custom_commands = load_custom_commands()
     
     if not custom_commands:
@@ -974,19 +1011,18 @@ async def close_business(interaction: discord.Interaction):
 # Dynamic command handler for custom commands
 @bot.event
 async def on_interaction(interaction):
-    # Ignore all interactions from blocked users
-    if is_blocked_user(interaction):
-        return
+    # LAYER 2 DEFENSE: Immediately ignore ALL interactions from barred users
+    # This is checked before any other processing as a safety net
+    try:
+        if interaction.user and is_user_barred(interaction.user.id):
+            command_info = getattr(interaction, "data", {}) or {}
+            command_name = command_info.get('name', 'unknown')
+            print(f"🚫 [Layer 2] Silently ignoring interaction '{command_name}' from barred user {interaction.user.id}")
+            return  # Exit immediately without acknowledging
+    except Exception as e:
+        print(f"⚠️ Error checking barred status in on_interaction: {e}")
+    
     if interaction.type == discord.InteractionType.application_command:
-        try:
-            if is_user_barred(interaction.user.id):
-                command_info = getattr(interaction, "data", {}) or {}
-                command_name = command_info.get('name', 'unknown')
-                print(f"🚫 Ignoring command '{command_name}' from barred user {interaction.user.id}")
-                return
-        except Exception as e:
-            print(f"⚠️ Failed to evaluate barred user status: {e}")
-
         command_name = interaction.data['name']
 
         # Check if it's a custom command
@@ -1012,10 +1048,18 @@ async def on_command_error(ctx, error):
 # App command (slash command) error handler
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error):
-    # Silently ignore blocked users so their interactions are not acknowledged
+    # LAYER 3 DEFENSE: Silently ignore ALL errors from barred users
+    try:
+        if interaction.user and is_user_barred(interaction.user.id):
+            print(f"🚫 [Layer 3] Silently ignoring error from barred user {interaction.user.id}: {type(error).__name__}")
+            return  # Don't send any response or acknowledge the error
+    except Exception as e:
+        print(f"⚠️ Error checking barred status in error handler: {e}")
+    
+    # For non-barred users, handle CheckFailure silently (could be other checks)
     if isinstance(error, app_commands.CheckFailure):
-        if is_blocked_user(interaction):
-            return
+        print(f"⚠️ Command check failed for user {interaction.user.id if interaction.user else 'unknown'}: {error}")
+        return
 
 # Run the bot
 if __name__ == "__main__":
