@@ -6,7 +6,8 @@ import shutil
 import os
 from dotenv import load_dotenv
 import threading
-import socket
+import socketserver
+from http.server import BaseHTTPRequestHandler
 import time
 
 # Load environment variables
@@ -130,52 +131,74 @@ migrate_legacy_file('custom_commands.json', COMMANDS_FILE)
 migrate_legacy_file('payment_links.json', LINKS_FILE)
 migrate_legacy_file('enjoy_messages.json', ENJOY_FILE)
 
-# Simple socket-based health server
-def start_health_server():
-    """Start simple health server using sockets"""
+# Simple HTTP health server used by deployment platforms
+class _HealthCheckHandler(BaseHTTPRequestHandler):
+    """Simple handler that always returns HTTP 200 with a plain text body."""
+
+    # Disable default logging to stderr to avoid noisy output on health probes
+    def log_message(self, format, *args):
+        return
+
+    def _write_ok(self):
+        body = b"OK"
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        # For HEAD requests we do not write a body
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
+    def do_GET(self):  # noqa: N802 (discord bot project - keep discord naming conventions)
+        self._write_ok()
+
+    def do_HEAD(self):  # noqa: N802
+        self._write_ok()
+
+
+class _ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+
+_health_server: _ThreadedTCPServer | None = None
+
+
+def _resolve_port(default: int = 8080) -> int:
+    raw_port = os.getenv('PORT')
+    if not raw_port:
+        return default
     try:
-        port = int(os.getenv('PORT', 8080))
+        value = int(raw_port)
+        if value <= 0:
+            raise ValueError("Port must be positive")
+        return value
+    except (TypeError, ValueError) as exc:
+        print(f"⚠️ Invalid PORT value '{raw_port}': {exc}. Falling back to {default}.")
+        return default
+
+
+def start_health_server():
+    """Start a tiny multithreaded HTTP health check server."""
+    global _health_server
+    try:
+        port = _resolve_port()
+        if _health_server is not None:
+            print("ℹ️ Health server already running; reusing existing instance")
+            return True
+
         print(f"Starting health server on port {port}")
-        
-        # Create socket
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind(('0.0.0.0', port))
-        sock.listen(5)  # Increased backlog
-        
-        print(f"✅ Health server listening on port {port}")
-        
-        # Start server in background
-        def run_server():
-            while True:
-                try:
-                    conn, addr = sock.accept()
-                    conn.settimeout(1.0)  # 1 second timeout
-                    try:
-                        data = conn.recv(1024).decode('utf-8', errors='ignore')
-                        # Respond to ANY request with 200 OK (health checks can vary)
-                        response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nOK"
-                        conn.sendall(response.encode())
-                    except socket.timeout:
-                        pass
-                    except Exception as e:
-                        print(f"⚠️ Health request error: {e}")
-                    finally:
-                        try:
-                            conn.close()
-                        except:
-                            pass
-                except Exception as e:
-                    print(f"⚠️ Health server accept error: {e}")
-                    time.sleep(0.1)  # Brief pause on error
-        
-        thread = threading.Thread(target=run_server, daemon=True)
+        server = _ThreadedTCPServer(('0.0.0.0', port), _HealthCheckHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
-        
+        _health_server = server
+        print(f"✅ Health server listening on port {port}")
         return True
-            
-    except Exception as e:
-        print(f"❌ Failed to start health server: {e}")
+    except OSError as exc:
+        print(f"❌ Failed to bind health server on port {port}: {exc}")
+        return False
+    except Exception as exc:  # Fallback for unexpected issues
+        print(f"❌ Failed to start health server: {exc}")
         return False
 
 # Load custom commands
