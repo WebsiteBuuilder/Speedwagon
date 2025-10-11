@@ -637,7 +637,14 @@ async def enjoy(interaction: discord.Interaction, customer: str):
     # LAYER 4 DEFENSE: Individual command guard
     if is_user_barred(interaction.user.id):
         return
-    
+
+    guild = interaction.guild
+    if guild is None:
+        await interaction.response.send_message(
+            "❌ This command can only be used inside a server.", ephemeral=True
+        )
+        return
+
     try:
         # Find the user by name or mention
         target_user = None
@@ -647,12 +654,12 @@ async def enjoy(interaction: discord.Interaction, customer: str):
             try:
                 # Extract user ID from mention
                 user_id = int(customer.strip('<@!&>'))
-                target_user = interaction.guild.get_member(user_id)
+                target_user = guild.get_member(user_id)
             except (ValueError, AttributeError):
                 pass
         else:
             # Look up by display name or username
-            for member in interaction.guild.members:
+            for member in guild.members:
                 if member.display_name.lower() == customer.lower() or member.name.lower() == customer.lower():
                     target_user = member
                     break
@@ -685,22 +692,22 @@ async def enjoy(interaction: discord.Interaction, customer: str):
         try:
             # Prefer exact channel name 'vouch-📸', then any channel containing 'vouch'
             vouch_channel = next(
-                (c for c in interaction.guild.text_channels if c.name == 'vouch-📸'),
+                (c for c in guild.text_channels if c.name == 'vouch-📸'),
                 None
             )
             if vouch_channel is None:
                 vouch_channel = next(
-                    (c for c in interaction.guild.text_channels if 'vouch' in c.name.lower()),
+                    (c for c in guild.text_channels if 'vouch' in c.name.lower()),
                     None
                 )
             # Exact name first, then any channel containing 'casino' (ignoring suits)
             casino_channel = next(
-                (c for c in interaction.guild.text_channels if c.name == '♠♥casino♣♦'),
+                (c for c in guild.text_channels if c.name == '♠♥casino♣♦'),
                 None
             )
             if casino_channel is None:
                 casino_channel = next(
-                    (c for c in interaction.guild.text_channels if 'casino' in c.name.lower()),
+                    (c for c in guild.text_channels if 'casino' in c.name.lower()),
                     None
                 )
         except Exception:
@@ -1015,30 +1022,44 @@ async def close_business(interaction: discord.Interaction):
 
 # Dynamic command handler for custom commands
 @bot.event
-async def on_interaction(interaction):
-    # LAYER 2 DEFENSE: Immediately ignore ALL interactions from barred users
-    # This is checked before any other processing as a safety net
+async def on_interaction(interaction: discord.Interaction):
+    """Handle incoming interactions and fall back to the default command tree."""
+
+    # LAYER 2 DEFENSE: Immediately ignore ALL interactions from barred users.
+    # This is checked before any other processing as a safety net.
     try:
         if interaction.user and is_user_barred(interaction.user.id):
             command_info = getattr(interaction, "data", {}) or {}
             command_name = command_info.get('name', 'unknown')
-            print(f"🚫 [Layer 2] Silently ignoring interaction '{command_name}' from barred user {interaction.user.id}")
+            print(
+                f"🚫 [Layer 2] Silently ignoring interaction '{command_name}' from barred user {interaction.user.id}"
+            )
             return  # Exit immediately without acknowledging
     except Exception as e:
         print(f"⚠️ Error checking barred status in on_interaction: {e}")
-    
+
+    handled = False
+
     if interaction.type == discord.InteractionType.application_command:
-        command_name = interaction.data['name']
+        command_name = interaction.data.get('name') if interaction.data else None
 
-        # Check if it's a custom command
-        custom_commands = load_custom_commands()
-        if command_name in custom_commands:
-            response = custom_commands[command_name]
-            await interaction.response.send_message(response)
-            return
+        if command_name:
+            # Check if it's a custom command stored in our JSON config.
+            custom_commands = load_custom_commands()
+            if command_name in custom_commands:
+                response = custom_commands[command_name]
+                await interaction.response.send_message(response)
+                handled = True
 
-    # Let other interactions pass through to default handler
-    await bot.process_application_commands(interaction)
+    if not handled:
+        # Let other interactions pass through to the default handler that discord.py
+        # normally provides. ``CommandTree._call`` mirrors the library's built-in
+        # processing (``process_application_commands`` existed only in forks such as
+        # py-cord), so using it keeps behaviour identical across library versions.
+        try:
+            await bot.tree._call(interaction)
+        except AttributeError:
+            print("⚠️ CommandTree._call is unavailable; interaction was not handled.")
 
 # Error handling
 @bot.event
