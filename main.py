@@ -3,6 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 import json
 import shutil
+import re
 import os
 from dotenv import load_dotenv
 import threading
@@ -46,6 +47,7 @@ COMMANDS_FILE = os.path.join(DATA_DIR, 'custom_commands.json')
 LINKS_FILE = os.path.join(DATA_DIR, 'payment_links.json')
 ENJOY_FILE = os.path.join(DATA_DIR, 'enjoy_messages.json')
 BARRED_USERS_FILE = os.path.join(DATA_DIR, 'barred_users.json')
+ACCOUNTS_FILE = os.path.join(DATA_DIR, 'accounts.json')
 DEFAULT_BARRED_USERS: tuple[str, ...] = (
     "1405894979095892108",
 )
@@ -210,6 +212,45 @@ def load_custom_commands():
         return {}
 
 
+def ensure_accounts_store() -> None:
+    """Create an empty accounts database if it does not already exist."""
+    if not os.path.exists(ACCOUNTS_FILE):
+        save_accounts({})
+
+
+def load_accounts() -> dict[str, list[str]]:
+    """Load the stored accounts grouped by category name."""
+    ensure_accounts_store()
+    with open(ACCOUNTS_FILE, 'r') as f:
+        data = json.load(f)
+        # Ensure the structure is always mapping -> list[str]
+        if not isinstance(data, dict):
+            return {}
+        normalized: dict[str, list[str]] = {}
+        for key, value in data.items():
+            if isinstance(value, list):
+                normalized[key] = [str(entry) for entry in value]
+        return normalized
+
+
+def save_accounts(accounts: dict[str, list[str]]) -> None:
+    """Persist the provided accounts dictionary to disk."""
+    with open(ACCOUNTS_FILE, 'w') as f:
+        json.dump(accounts, f, indent=2)
+
+
+def parse_accounts_from_text(raw_text: str) -> list[str]:
+    """Extract account lines that contain an e-mail address from arbitrary text."""
+    parsed: list[str] = []
+    for line in raw_text.splitlines():
+        candidate = line.strip()
+        if not candidate:
+            continue
+        if EMAIL_REGEX.search(candidate):
+            parsed.append(candidate)
+    return parsed
+
+
 def load_barred_users() -> set[str]:
     """Load barred user IDs stored in the barred users config."""
     ensure_barred_users_config_exists()
@@ -255,6 +296,10 @@ async def global_barred_user_check(interaction: discord.Interaction) -> bool:
         # Returning False prevents the command from executing.
         return False
     return True
+
+
+# Simple email matcher used when parsing account dumps
+EMAIL_REGEX = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 
 
 # Save custom commands
@@ -380,6 +425,9 @@ if not os.path.exists(ENJOY_FILE):
         "index": 0
     })
 
+if not os.path.exists(ACCOUNTS_FILE):
+    save_accounts({})
+
 # Ensure barred users config exists and seed default barred IDs
 ensure_barred_users_config_exists()
 for default_barred_id in DEFAULT_BARRED_USERS:
@@ -457,6 +505,140 @@ async def editcommand(interaction: discord.Interaction, command_name: str, respo
     save_custom_commands(custom_commands)
     
     await interaction.response.send_message(f"✅ Command `/{command_name}` has been updated!", ephemeral=True)
+
+
+@bot.tree.command(name="bulkadd", description="Bulk add accounts to a category (Provider role only)")
+@app_commands.describe(
+    category="Name of the account category",
+    entries="Text containing accounts (one per line)"
+)
+async def bulkadd(interaction: discord.Interaction, category: str, entries: str):
+    if is_user_barred(interaction.user.id):
+        await interaction.response.send_message("❌ You are barred from using this command!", ephemeral=True)
+        return
+
+    provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
+    if not provider_role or provider_role not in interaction.user.roles:
+        await interaction.response.send_message("❌ You need the Provider role to use this command!", ephemeral=True)
+        return
+
+    parsed_accounts = parse_accounts_from_text(entries)
+    if not parsed_accounts:
+        await interaction.response.send_message("⚠️ I couldn't find any account lines containing an email address.", ephemeral=True)
+        return
+
+    accounts_store = load_accounts()
+    category_key = category.strip().lower()
+    stored_accounts = accounts_store.setdefault(category_key, [])
+
+    existing = set(stored_accounts)
+    added = 0
+    for account in parsed_accounts:
+        if account not in existing:
+            stored_accounts.append(account)
+            existing.add(account)
+            added += 1
+
+    save_accounts(accounts_store)
+
+    duplicates = len(parsed_accounts) - added
+    response_lines = [f"✅ Added {added} new account(s) to `{category}`."]
+    response_lines.append(f"📦 `{category}` now has {len(stored_accounts)} account(s) available.")
+    if duplicates > 0:
+        response_lines.append(f"ℹ️ Skipped {duplicates} duplicate line(s).")
+
+    await interaction.response.send_message("\n".join(response_lines), ephemeral=True)
+
+
+@bot.tree.command(name="getaccount", description="Retrieve and remove the next account from a category")
+@app_commands.describe(category="Name of the account category to pull from")
+async def getaccount(interaction: discord.Interaction, category: str):
+    if is_user_barred(interaction.user.id):
+        await interaction.response.send_message("❌ You are barred from using this command!", ephemeral=True)
+        return
+
+    provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
+    if not provider_role or provider_role not in interaction.user.roles:
+        await interaction.response.send_message("❌ You need the Provider role to use this command!", ephemeral=True)
+        return
+
+    accounts_store = load_accounts()
+    category_key = category.strip().lower()
+    queued_accounts = accounts_store.get(category_key, [])
+
+    if not queued_accounts:
+        await interaction.response.send_message(f"⚠️ No accounts stored for `{category}`.", ephemeral=True)
+        return
+
+    account_line = queued_accounts.pop(0)
+    if not queued_accounts:
+        accounts_store.pop(category_key, None)
+    save_accounts(accounts_store)
+
+    message = (
+        f"🔑 Retrieved an account from `{category}`:\n"
+        f"```{account_line}```\n"
+        "(This entry has been removed from the queue.)"
+    )
+    await interaction.response.send_message(message, ephemeral=True)
+
+
+@bot.tree.command(name="listaccounts", description="List stored account categories and counts (Provider role only)")
+async def listaccounts(interaction: discord.Interaction):
+    if is_user_barred(interaction.user.id):
+        await interaction.response.send_message("❌ You are barred from using this command!", ephemeral=True)
+        return
+
+    provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
+    if not provider_role or provider_role not in interaction.user.roles:
+        await interaction.response.send_message("❌ You need the Provider role to use this command!", ephemeral=True)
+        return
+
+    accounts_store = load_accounts()
+    if not accounts_store:
+        await interaction.response.send_message("📭 No accounts have been stored yet.", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="🗂️ Stored Account Categories",
+        description="Current categories and the number of accounts remaining in each queue:",
+        color=0x3498db
+    )
+
+    for category_key, items in sorted(accounts_store.items()):
+        display_name = category_key
+        embed.add_field(name=display_name, value=f"{len(items)} account(s)", inline=False)
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+@bot.tree.command(name="clearaccount", description="Remove all accounts from a category (Provider role only)")
+@app_commands.describe(category="Name of the account category to clear")
+async def clearaccount(interaction: discord.Interaction, category: str):
+    if is_user_barred(interaction.user.id):
+        await interaction.response.send_message("❌ You are barred from using this command!", ephemeral=True)
+        return
+
+    provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
+    if not provider_role or provider_role not in interaction.user.roles:
+        await interaction.response.send_message("❌ You need the Provider role to use this command!", ephemeral=True)
+        return
+
+    accounts_store = load_accounts()
+    category_key = category.strip().lower()
+
+    if category_key not in accounts_store:
+        await interaction.response.send_message(f"⚠️ `{category}` doesn't have any stored accounts.", ephemeral=True)
+        return
+
+    removed = len(accounts_store.pop(category_key, []))
+    save_accounts(accounts_store)
+
+    await interaction.response.send_message(
+        f"🗑️ Cleared `{removed}` account(s) from `{category}`.",
+        ephemeral=True
+    )
+
 
 @bot.tree.command(name="neck", description="Get payment method links")
 async def neck(interaction: discord.Interaction):
