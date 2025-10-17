@@ -1,10 +1,11 @@
 import discord
-from discord import app_commands
+from discord import AllowedMentions, app_commands
 from discord.ext import commands
 import json
 import shutil
 import re
 import os
+import random
 from dotenv import load_dotenv
 import threading
 import socketserver
@@ -55,71 +56,127 @@ DEFAULT_BARRED_USERS: tuple[str, ...] = (
 
 # Built-in default /enjoy messages (50), using (user) placeholder and #vouch/#casino
 DEFAULT_ENJOY_MESSAGES = [
-    "✅ Thanks for ordering, (user)! Enjoy your meal 🍔 Don’t forget to vouch in #vouch for points—redeem for free food or gamble in #casino 🎰",
-    "🚀 Order’s in, (user)! Feast mode ON 😋 Drop a vouch in #vouch to stack points → free orders or casino wins 🎡",
-    "🍽️ Dig in, (user)! Be sure to post in #vouch for reward points 🎟️ Redeem for free eats or take your shot in #casino 🃏",
-    "🎊 Appreciate you, (user)! Enjoy your QuikEats 🍕 Earn points by vouching in #vouch then try your luck in #casino 🎲",
-    "✨ Enjoy every bite, (user) 😍 A quick vouch in #vouch = points toward free orders & casino plays 💎",
-    "🥳 Thanks for riding with us, (user)! After your meal, vouch in #vouch for points → free meals or big wins in #casino 🎰",
-    "🍔🍟 Chow time, (user)! Earn points by dropping a vouch in #vouch → redeem or gamble in #casino 🔥",
-    "⚡ Enjoy your QuikEats drop, (user)! Share a vouch in #vouch for points & hit #casino to spin 🎲",
-    "💯 Appreciate your order, (user)! Every vouch in #vouch = points 🪙 Free food or double down in #casino ♠️",
-    "🍴 Cravings crushed, (user)! Don’t forget to vouch in #vouch → stack points, redeem, or gamble 💫",
-    "🥢 Meal delivered 🥡, (user)! Vouch in #vouch for points → use for free eats or casino fun 🎰",
-    "🏆 You’re a winner already, (user)! Thanks for ordering 💎 Drop a vouch in #vouch to claim points & play in #casino 🎲",
-    "🍕🍔 Hot & ready, (user)! Enjoy 😋 Then vouch in #vouch → free orders or a casino jackpot 🎰",
-    "🔥 Order locked in, (user)! Enjoy your food and vouch in #vouch for points → gamble them in #casino 🎡",
-    "🎶 Dinner vibes active 😎, (user)! Drop a vouch in #vouch → earn points & spin the games in #casino 🃏",
-    "💥 Thanks for rolling with QuikEats, (user)! Enjoy your food & claim points in #vouch → jackpot awaits in #casino 🎰",
-    "🥤 Sip back, relax, (user) 🍔 Don’t forget to vouch in #vouch for points → redeem or risk in #casino 🎲",
-    "🌟 Enjoy your QuikEats, (user)! Collect points in #vouch → freebies OR roulette, blackjack, slots in #casino 💎",
-    "🕹️ Level up, (user)! Food’s here 🍕 Bonus points waiting in #vouch → free orders or casino action 🎰",
-    "🍜 Slurp it up, (user)! Post your vouch in #vouch to stack points → gamble them in #casino 🎲",
-    "🚨 QuikEats complete ✅, (user)! Enjoy & vouch in #vouch → rewards or casino wins 🎰",
-    "🍴 Bon appétit, (user) 😍 Don’t miss your vouch in #vouch → points = free orders or casino shots 🎲",
-    "🥂 Cheers to you, (user)! Thanks for ordering 🥳 Vouch in #vouch to stack points & gamble in #casino 🃏",
-    "🤑 Rack up, (user)! Enjoy your food & vouch in #vouch → points for free meals or casino play 🎰",
-    "🎯 Mission complete, (user)! Food delivered ✅ Vouch in #vouch for points → spend or spin 🎲",
-    "🧃 Refresh & feast 😋, (user)! Drop a vouch in #vouch → free orders or casino jackpots 🎡",
-    "🛎️ Your food’s in, (user)! Earn points by vouching in #vouch → free meals or casino fun 🎰",
-    "🍔💨 Fast food, faster rewards, (user)! Don’t forget #vouch → free eats or casino thrills 🎲",
-    "🌈 Taste the win, (user)! Vouch in #vouch for points → redeem or risk them in #casino 🎰",
-    "🎁 Big thanks, (user)! Enjoy your QuikEats & vouch in #vouch → free meals or casino jackpots 💎",
-    "💌 Thanks a bunch, (user)! Enjoy your order 💫 Don’t forget: vouch in #vouch to stack points & roll the dice in #casino 🎲",
-    "🥳 Food secured, (user)! Feast away 😋 Vouch in #vouch for reward points → gamble or redeem 🎰",
-    "🔑 Unlock rewards, (user)! Enjoy your food & claim points in #vouch → spend or spin them in #casino 🎡",
-    "🍟 Fries hot, vibes hotter, (user)! Vouch in #vouch for points → free eats or jackpot chances 🎰",
-    "🥤 Sip + snack = win, (user)! Be sure to vouch in #vouch → collect points, redeem, or risk 🎲",
-    "🏅 You’re VIP, (user)! Thanks for ordering 🎉 Earn points by vouching in #vouch → play them in #casino 🃏",
-    "🍴 Feast mode engaged, (user)! Vouch in #vouch for points toward free meals or casino fun 🎰",
-    "🔔 Ding ding, order’s here, (user)! Enjoy + vouch in #vouch → stack rewards & gamble 🎡",
-    "✌️ Big ups, (user)! Enjoy your QuikEats & earn by vouching in #vouch → points = food or casino shots 🎲",
-    "🎨 Flavor unlocked, (user)! Post your vouch in #vouch → redeem or risk it in #casino 🎰",
-    "🧨 Boom! Order’s dropped, (user)! Enjoy & vouch in #vouch → rack points, play in #casino 🔥",
-    "🍔 Hungry no more, (user)! Thanks for choosing QuikEats 🙌 Don’t forget to vouch in #vouch → stack rewards 🎲",
-    "🌟 Meal vibes strong, (user)! Drop a vouch in #vouch → points for free orders or casino jackpots 🎰",
-    "🥢 Fresh eats delivered, (user)! Vouch in #vouch → free meals or risk it all in #casino 🎡",
-    "🍩 Sweet win, (user)! Enjoy & don’t miss your vouch in #vouch → gamble points in #casino 🃏",
-    "🚦 Green light to eat, (user)! Chow down 😋 Vouch in #vouch for points → freebies or casino 🎰",
-    "📦 Delivery complete, (user)! Enjoy + earn points with a quick vouch in #vouch → redeem or spin 🎲",
-    "💫 Thanks for choosing us, (user)! Drop a vouch in #vouch to unlock free orders or casino games 🎡",
-    "🎉 Party plate unlocked, (user)! Enjoy & vouch in #vouch → rewards or gamble in #casino 🎰",
-    "🔥 Feast up, (user)! Your meal’s ready—don’t forget to vouch in #vouch → stack points & try your luck 🎲",
+    "✅ Thanks for ordering, (user)! Enjoy your meal 🍔 Don’t forget to vouch in #vouch for points—redeem for free food or gamble in #casino 🎰 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🚀 Order’s in, (user)! Feast mode ON 😋 Drop a vouch in #vouch to stack points → free orders or casino wins 🎡 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🍽️ Dig in, (user)! Be sure to post in #vouch for reward points 🎟️ Redeem for free eats or take your shot in #casino 🃏 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🎊 Appreciate you, (user)! Enjoy your GUHDeats 🍕 Earn points by vouching in #vouch then try your luck in #casino 🎲 STILL GUHHD with GUHDeats 💪",
+    "✨ Enjoy every bite, (user) 😍 A quick vouch in #vouch = points toward free orders & casino plays 💎 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🥳 Thanks for riding with us, (user)! After your meal, vouch in #vouch for points → free meals or big wins in #casino 🎰 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🍔🍟 Chow time, (user)! Earn points by dropping a vouch in #vouch → redeem or gamble in #casino 🔥 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "⚡ Enjoy your GUHDeats drop, (user)! Share a vouch in #vouch for points & hit #casino to spin 🎲 STILL GUHHD with GUHDeats 💪",
+    "💯 Appreciate your order, (user)! Every vouch in #vouch = points 🪙 Free food or double down in #casino ♠️ Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🍴 Cravings crushed, (user)! Don’t forget to vouch in #vouch → stack points, redeem, or gamble 💫 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🥢 Meal delivered 🥡, (user)! Vouch in #vouch for points → use for free eats or casino fun 🎰 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🏆 You’re a winner already, (user)! Thanks for ordering 💎 Drop a vouch in #vouch to claim points & play in #casino 🎲 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🍕🍔 Hot & ready, (user)! Enjoy 😋 Then vouch in #vouch → free orders or a casino jackpot 🎰 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🔥 Order locked in, (user)! Enjoy your food and vouch in #vouch for points → gamble them in #casino 🎡 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🎶 Dinner vibes active 😎, (user)! Drop a vouch in #vouch → earn points & spin the games in #casino 🃏 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "💥 Thanks for rolling with GUHDeats, (user)! Enjoy your food & claim points in #vouch → jackpot awaits in #casino 🎰 STILL GUHHD with GUHDeats 💪",
+    "🥤 Sip back, relax, (user) 🍔 Don’t forget to vouch in #vouch for points → redeem or risk in #casino 🎲 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🌟 Enjoy your GUHDeats, (user)! Collect points in #vouch → freebies OR roulette, blackjack, slots in #casino 💎 STILL GUHHD with GUHDeats 💪",
+    "🕹️ Level up, (user)! Food’s here 🍕 Bonus points waiting in #vouch → free orders or casino action 🎰 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🍜 Slurp it up, (user)! Post your vouch in #vouch to stack points → gamble them in #casino 🎲 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🚨 GUHDeats complete ✅, (user)! Enjoy & vouch in #vouch → rewards or casino wins 🎰 STILL GUHHD with GUHDeats 💪",
+    "🍴 Bon appétit, (user) 😍 Don’t miss your vouch in #vouch → points = free orders or casino shots 🎲 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🥂 Cheers to you, (user)! Thanks for ordering 🥳 Vouch in #vouch to stack points & gamble in #casino 🃏 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🤑 Rack up, (user)! Enjoy your food & vouch in #vouch → points for free meals or casino play 🎰 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🎯 Mission complete, (user)! Food delivered ✅ Vouch in #vouch for points → spend or spin 🎲 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🧃 Refresh & feast 😋, (user)! Drop a vouch in #vouch → free orders or casino jackpots 🎡 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🛎️ Your food’s in, (user)! Earn points by vouching in #vouch → free meals or casino fun 🎰 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🍔💨 Fast food, faster rewards, (user)! Don’t forget #vouch → free eats or casino thrills 🎲 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🌈 Taste the win, (user)! Vouch in #vouch for points → redeem or risk them in #casino 🎰 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🎁 Big thanks, (user)! Enjoy your GUHDeats & vouch in #vouch → free meals or casino jackpots 💎 STILL GUHHD with GUHDeats 💪",
+    "💌 Thanks a bunch, (user)! Enjoy your order 💫 Don’t forget: vouch in #vouch to stack points & roll the dice in #casino 🎲 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🥳 Food secured, (user)! Feast away 😋 Vouch in #vouch for reward points → gamble or redeem 🎰 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🔑 Unlock rewards, (user)! Enjoy your food & claim points in #vouch → spend or spin them in #casino 🎡 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🍟 Fries hot, vibes hotter, (user)! Vouch in #vouch for points → free eats or jackpot chances 🎰 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🥤 Sip + snack = win, (user)! Be sure to vouch in #vouch → collect points, redeem, or risk 🎲 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🏅 You’re VIP, (user)! Thanks for ordering 🎉 Earn points by vouching in #vouch → play them in #casino 🃏 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🍴 Feast mode engaged, (user)! Vouch in #vouch for points toward free meals or casino fun 🎰 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🔔 Ding ding, order’s here, (user)! Enjoy + vouch in #vouch → stack rewards & gamble 🎡 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "✌️ Big ups, (user)! Enjoy your GUHDeats & earn by vouching in #vouch → points = food or casino shots 🎲 STILL GUHHD with GUHDeats 💪",
+    "🎨 Flavor unlocked, (user)! Post your vouch in #vouch → redeem or risk it in #casino 🎰 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🧨 Boom! Order’s dropped, (user)! Enjoy & vouch in #vouch → rack points, play in #casino 🔥 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🍔 Hungry no more, (user)! Thanks for choosing GUHDeats 🙌 Don’t forget to vouch in #vouch → stack rewards 🎲 STILL GUHHD with GUHDeats 💪",
+    "🌟 Meal vibes strong, (user)! Drop a vouch in #vouch → points for free orders or casino jackpots 🎰 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🥢 Fresh eats delivered, (user)! Vouch in #vouch → free meals or risk it all in #casino 🎡 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🍩 Sweet win, (user)! Enjoy & don’t miss your vouch in #vouch → gamble points in #casino 🃏 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🚦 Green light to eat, (user)! Chow down 😋 Vouch in #vouch for points → freebies or casino 🎰 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "📦 Delivery complete, (user)! Enjoy + earn points with a quick vouch in #vouch → redeem or spin 🎲 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "💫 Thanks for choosing us, (user)! Drop a vouch in #vouch to unlock free orders or casino games 🎡 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🎉 Party plate unlocked, (user)! Enjoy & vouch in #vouch → rewards or gamble in #casino 🎰 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪",
+    "🔥 Feast up, (user)! Your meal’s ready—don’t forget to vouch in #vouch → stack points & try your luck 🎲 Thanks for choosing GUHDeats! STILL GUHHD with GUHDeats 💪"
 ]
 
 # Fresh rotating welcome lines for new members.
 DEFAULT_WELCOME_MESSAGES = [
-    "🌟 Hey (user), welcome to GUHD EATS! Pop in with /daily to scoop VP and bring that luck to the casino floor!",
-    "🍽️ Glad you made it, (user)! Hit /daily for your VP boost—perfect fuel for the casino tables at GUHD EATS.",
-    "🎉 GUHD EATS is hyped to have you, (user)! Don’t miss your /daily pull for VP before you roll into the casino.",
-    "🚀 Welcome aboard GUHD EATS, (user)! Claim VP with /daily and save a stash for those casino runs.",
-    "🥳 Cheers, (user)! GUHD EATS doors are open—remember to use /daily for VP so you can flex in the casino.",
-    "🔥 (user), GUHD EATS just leveled up with you here! Snap /daily to bank VP and light up the casino floor.",
-    "🎰 Welcome to GUHD EATS, (user)! /daily is your VP plug—perfect for chasing wins in the casino.",
-    "💫 We’ve been waiting for you, (user)! Make GUHD EATS home, tap /daily for VP, then go wild in the casino.",
-    "🍀 Big welcome to GUHD EATS, (user)! Grab VP every day with /daily and stack the odds in the casino.",
-    "💎 (user), GUHD EATS is your new spot! Claim VP via /daily and let’s see you shine in the casino lounge."
+    "🎉 Welcome to GUHD EATS, (user)! We do 50% off Uber Eats—check out the casino channels and hit /daily (chances go up with orders!).",
+    "🍔 Glad you joined GUHD EATS, (user)! Enjoy 50% off Uber Eats, explore the casino, and grab /daily every day—your odds rise with each order.",
+    "💫 Big welcome, (user)! Dive into 50% off Uber Eats deals, visit the casino rooms, and be sure to run /daily (better odds when you order).",
+    "🎰 Hey (user), welcome aboard! Snag 50% off Uber Eats, roll into the casino, and tap /daily—the chances keep climbing with orders.",
+    "🚀 Stoked to have you, (user)! Remember: 50% off Uber Eats, casino fun waiting, and /daily gets sweeter as you place orders."
 ]
+
+
+TIME_OF_DAY_SNIPPETS: dict[str, list[str]] = {
+    "morning": [
+        "☀️ Early bird energy! Pair your first /daily spin with a breakfast steal.",
+        "🌞 Sunrise special—line up an order now and watch those /daily odds grow." 
+    ],
+    "afternoon": [
+        "🌤️ Midday munchies? Queue a lunch order for that extra /daily boost.",
+        "🍽️ Perfect time for a double-dip: place an order and smash /daily!"
+    ],
+    "evening": [
+        "🌙 Prime dinner time—keep the casino buzzing after you run /daily.",
+        "🍝 Night crowd's rolling—grab your 50% off bite and cash in on /daily." 
+    ],
+    "overnight": [
+        "🌌 Late-night cravings hit different. Tap /daily and ride the lucky streak.",
+        "🦉 Night owl status unlocked—orders now supercharge your /daily chances." 
+    ],
+}
+
+
+MEMBER_COUNT_SNIPPETS = [
+    "You're member #{count} sliding in—let's make it legendary!",
+    "Lucky #{count}! Ping a provider if you want help snagging that first order.",
+    "Crew count just hit #{count}! Drop into the casino and say hi."
+]
+
+
+WELCOME_ROLLOUT_SNIPPETS = [
+    "🎟️ Need a plug? Pop a ticket anytime—mods are on standby.",
+    "🎲 Feeling bold? Casino jackpots hit different after a fresh order.",
+    "📈 Orders = better /daily luck. Stack them and flex in #vouch.",
+    "🛎️ Questions about 50% off? Staff are one ping away.",
+    "💬 Jump into chat and let folks know what you're craving tonight!"
+]
+
+
+def _time_slot_from_hour(hour: int) -> str:
+    if 5 <= hour < 12:
+        return "morning"
+    if 12 <= hour < 17:
+        return "afternoon"
+    if 17 <= hour < 23:
+        return "evening"
+    return "overnight"
+
+
+def _needs_welcome_update(data: dict) -> bool:
+    try:
+        messages = data.get("messages", [])
+        if not messages:
+            return True
+        required_phrases = ("50% off", "uber eats", "/daily", "casino")
+        for message in messages:
+            normalized = message.lower()
+            if not all(phrase in normalized for phrase in required_phrases):
+                return True
+        return False
+    except Exception:
+        return True
 
 def _needs_enjoy_update(data: dict) -> bool:
     try:
@@ -469,6 +526,11 @@ def load_welcome_messages() -> dict:
     try:
         with open(WELCOME_FILE, 'r') as f:
             data = json.load(f)
+            if _needs_welcome_update(data):
+                healed = {"messages": DEFAULT_WELCOME_MESSAGES, "index": 0}
+                save_welcome_messages(healed)
+                print("🔧 Auto-updated welcome_messages.json to spotlight latest promos")
+                return healed
             messages = data.get("messages", [])
             if not messages:
                 data = {"messages": DEFAULT_WELCOME_MESSAGES, "index": 0}
@@ -496,7 +558,21 @@ def get_next_welcome_message(member: discord.Member) -> str | None:
     template = messages[index]
     data["index"] = (index + 1) % len(messages)
     save_welcome_messages(data)
-    return template.replace("(user)", member.mention)
+    base_line = template.replace("(user)", member.mention)
+
+    now_hour = time.localtime().tm_hour
+    slot = _time_slot_from_hour(now_hour)
+    time_variant = random.choice(TIME_OF_DAY_SNIPPETS.get(slot, TIME_OF_DAY_SNIPPETS["evening"]))
+
+    extras: list[str] = [time_variant]
+
+    if member.guild and member.guild.member_count:
+        count_formatted = f"{member.guild.member_count:,}"
+        extras.append(random.choice(MEMBER_COUNT_SNIPPETS).format(count=count_formatted))
+
+    extras.append(random.choice(WELCOME_ROLLOUT_SNIPPETS))
+
+    return "\n".join([base_line] + extras)
 
 
 @bot.event
@@ -655,12 +731,16 @@ async def getaccount(interaction: discord.Interaction, category: str):
         accounts_store.pop(category_key, None)
     save_accounts(accounts_store)
 
-    message = (
-        f"🔑 `{category}` account ready to copy & paste:\n"
-        f"```{account_line}```\n"
-        "✅ This entry has been removed from the queue."
+    await interaction.response.send_message(
+        account_line,
+        ephemeral=True,
+        allowed_mentions=AllowedMentions.none()
     )
-    await interaction.response.send_message(message, ephemeral=True)
+
+    await interaction.followup.send(
+        f"✅ Removed the retrieved `{category}` entry from the queue. {len(queued_accounts)} account(s) remain.",
+        ephemeral=True
+    )
 
 
 @bot.tree.command(name="listaccounts", description="List stored account categories and counts (Provider role only)")
