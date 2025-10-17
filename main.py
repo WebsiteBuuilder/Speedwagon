@@ -48,6 +48,7 @@ LINKS_FILE = os.path.join(DATA_DIR, 'payment_links.json')
 ENJOY_FILE = os.path.join(DATA_DIR, 'enjoy_messages.json')
 BARRED_USERS_FILE = os.path.join(DATA_DIR, 'barred_users.json')
 ACCOUNTS_FILE = os.path.join(DATA_DIR, 'accounts.json')
+WELCOME_FILE = os.path.join(DATA_DIR, 'welcome_messages.json')
 DEFAULT_BARRED_USERS: tuple[str, ...] = (
     "1405894979095892108",
 )
@@ -104,6 +105,20 @@ DEFAULT_ENJOY_MESSAGES = [
     "💫 Thanks for choosing us, (user)! Drop a vouch in #vouch to unlock free orders or casino games 🎡",
     "🎉 Party plate unlocked, (user)! Enjoy & vouch in #vouch → rewards or gamble in #casino 🎰",
     "🔥 Feast up, (user)! Your meal’s ready—don’t forget to vouch in #vouch → stack points & try your luck 🎲",
+]
+
+# Fresh rotating welcome lines for new members.
+DEFAULT_WELCOME_MESSAGES = [
+    "🌟 Hey (user), welcome to GUHD EATS! Pop in with /daily to scoop VP and bring that luck to the casino floor!",
+    "🍽️ Glad you made it, (user)! Hit /daily for your VP boost—perfect fuel for the casino tables at GUHD EATS.",
+    "🎉 GUHD EATS is hyped to have you, (user)! Don’t miss your /daily pull for VP before you roll into the casino.",
+    "🚀 Welcome aboard GUHD EATS, (user)! Claim VP with /daily and save a stash for those casino runs.",
+    "🥳 Cheers, (user)! GUHD EATS doors are open—remember to use /daily for VP so you can flex in the casino.",
+    "🔥 (user), GUHD EATS just leveled up with you here! Snap /daily to bank VP and light up the casino floor.",
+    "🎰 Welcome to GUHD EATS, (user)! /daily is your VP plug—perfect for chasing wins in the casino.",
+    "💫 We’ve been waiting for you, (user)! Make GUHD EATS home, tap /daily for VP, then go wild in the casino.",
+    "🍀 Big welcome to GUHD EATS, (user)! Grab VP every day with /daily and stack the odds in the casino.",
+    "💎 (user), GUHD EATS is your new spot! Claim VP via /daily and let’s see you shine in the casino lounge."
 ]
 
 def _needs_enjoy_update(data: dict) -> bool:
@@ -218,6 +233,14 @@ def ensure_accounts_store() -> None:
         save_accounts({})
 
 
+def normalize_account_line(account_line: str) -> str:
+    """Return a trimmed, single-line representation that is easy to copy & paste."""
+    clean_line = account_line.strip()
+    # Collapse tabs or repeated whitespace to a single space to avoid odd formatting
+    clean_line = re.sub(r"\s+", " ", clean_line)
+    return clean_line
+
+
 def load_accounts() -> dict[str, list[str]]:
     """Load the stored accounts grouped by category name."""
     ensure_accounts_store()
@@ -229,7 +252,7 @@ def load_accounts() -> dict[str, list[str]]:
         normalized: dict[str, list[str]] = {}
         for key, value in data.items():
             if isinstance(value, list):
-                normalized[key] = [str(entry) for entry in value]
+                normalized[key] = [normalize_account_line(str(entry)) for entry in value]
         return normalized
 
 
@@ -247,7 +270,7 @@ def parse_accounts_from_text(raw_text: str) -> list[str]:
         if not candidate:
             continue
         if EMAIL_REGEX.search(candidate):
-            parsed.append(candidate)
+            parsed.append(normalize_account_line(candidate))
     return parsed
 
 
@@ -425,6 +448,10 @@ if not os.path.exists(ENJOY_FILE):
         "index": 0
     })
 
+if not os.path.exists(WELCOME_FILE):
+    with open(WELCOME_FILE, 'w') as f:
+        json.dump({"messages": DEFAULT_WELCOME_MESSAGES, "index": 0}, f, indent=2)
+
 if not os.path.exists(ACCOUNTS_FILE):
     save_accounts({})
 
@@ -436,6 +463,59 @@ for default_barred_id in DEFAULT_BARRED_USERS:
 # Register the check via the tree's interaction_check hook
 bot.tree.interaction_check = global_barred_user_check
 print("✅ Registered global barred user check for command tree")
+
+
+def load_welcome_messages() -> dict:
+    try:
+        with open(WELCOME_FILE, 'r') as f:
+            data = json.load(f)
+            messages = data.get("messages", [])
+            if not messages:
+                data = {"messages": DEFAULT_WELCOME_MESSAGES, "index": 0}
+                save_welcome_messages(data)
+            return data
+    except FileNotFoundError:
+        data = {"messages": DEFAULT_WELCOME_MESSAGES, "index": 0}
+        save_welcome_messages(data)
+        return data
+
+
+def save_welcome_messages(data: dict) -> None:
+    with open(WELCOME_FILE, 'w') as f:
+        json.dump(data, f, indent=2)
+
+
+def get_next_welcome_message(member: discord.Member) -> str | None:
+    if member.bot:
+        return None
+    data = load_welcome_messages()
+    messages: list[str] = data.get("messages", DEFAULT_WELCOME_MESSAGES)
+    if not messages:
+        return None
+    index = data.get("index", 0) % len(messages)
+    template = messages[index]
+    data["index"] = (index + 1) % len(messages)
+    save_welcome_messages(data)
+    return template.replace("(user)", member.mention)
+
+
+@bot.event
+async def on_member_join(member: discord.Member):
+    welcome_line = get_next_welcome_message(member)
+    if not welcome_line:
+        return
+    try:
+        await member.send(welcome_line)
+    except Exception as exc:
+        system_channel = getattr(member.guild, "system_channel", None)
+        if system_channel is not None:
+            try:
+                await system_channel.send(welcome_line)
+            except Exception as channel_exc:
+                print(f"⚠️ Failed to deliver welcome message for {member.id}: DM error={exc}; system channel error={channel_exc}")
+        else:
+            print(f"⚠️ Failed to deliver welcome message for {member.id}: {exc}")
+
 
 @bot.event
 async def on_ready():
@@ -570,15 +650,15 @@ async def getaccount(interaction: discord.Interaction, category: str):
         await interaction.response.send_message(f"⚠️ No accounts stored for `{category}`.", ephemeral=True)
         return
 
-    account_line = queued_accounts.pop(0)
+    account_line = normalize_account_line(queued_accounts.pop(0))
     if not queued_accounts:
         accounts_store.pop(category_key, None)
     save_accounts(accounts_store)
 
     message = (
-        f"🔑 Retrieved an account from `{category}`:\n"
+        f"🔑 `{category}` account ready to copy & paste:\n"
         f"```{account_line}```\n"
-        "(This entry has been removed from the queue.)"
+        "✅ This entry has been removed from the queue."
     )
     await interaction.response.send_message(message, ephemeral=True)
 
