@@ -549,43 +549,44 @@ async def on_member_join(member: discord.Member):
     welcome_line = get_next_welcome_message(member)
     if not welcome_line:
         return
-    try:
-        await member.send(welcome_line)
-    except Exception as exc:
-        guild = member.guild
-        fallback_channels: list[discord.abc.MessageableChannel] = []
-        if guild is not None:
-            system_channel = getattr(guild, "system_channel", None)
-            if system_channel is not None:
-                fallback_channels.append(system_channel)
+    guild = member.guild
+    if guild is None:
+        return
 
-            preferred_names = ("welcome", "introductions", "general")
-            for name in preferred_names:
-                channel = discord.utils.get(guild.text_channels, name=name)
-                if channel is not None and channel not in fallback_channels:
-                    fallback_channels.append(channel)
+    fallback_channels: list[discord.abc.MessageableChannel] = []
 
-            if not fallback_channels:
-                bot_member = getattr(guild, "me", None) or guild.get_member(bot.user.id)
-                for channel in guild.text_channels:
-                    try:
-                        if bot_member and channel.permissions_for(bot_member).send_messages:
-                            fallback_channels.append(channel)
-                            break
-                    except Exception:
-                        continue
+    system_channel = getattr(guild, "system_channel", None)
+    if system_channel is not None:
+        fallback_channels.append(system_channel)
 
-        for channel in fallback_channels:
+    preferred_names = ("welcome", "introductions", "general")
+    for name in preferred_names:
+        channel = discord.utils.get(guild.text_channels, name=name)
+        if channel is not None and channel not in fallback_channels:
+            fallback_channels.append(channel)
+
+    if not fallback_channels:
+        bot_member = getattr(guild, "me", None) or guild.get_member(bot.user.id)
+        for channel in guild.text_channels:
             try:
-                await channel.send(welcome_line)
-                return
-            except Exception as channel_exc:
-                print(
-                    "⚠️ Failed to deliver welcome message for %s via %s: DM error=%s; channel error=%s"
-                    % (member.id, getattr(channel, "name", "unknown"), exc, channel_exc)
-                )
-        if not fallback_channels:
-            print(f"⚠️ Failed to deliver welcome message for {member.id}: {exc}")
+                if bot_member and channel.permissions_for(bot_member).send_messages:
+                    fallback_channels.append(channel)
+                    break
+            except Exception:
+                continue
+
+    for channel in fallback_channels:
+        try:
+            await channel.send(welcome_line)
+            return
+        except Exception as channel_exc:
+            print(
+                "⚠️ Failed to deliver welcome message for %s via %s: %s"
+                % (member.id, getattr(channel, "name", "unknown"), channel_exc)
+            )
+
+    if not fallback_channels:
+        print(f"⚠️ Failed to deliver welcome message for {member.id}: no accessible channel")
 
 
 @bot.event
