@@ -1297,12 +1297,13 @@ async def open_business(interaction: discord.Interaction):
         everyone_role = interaction.guild.default_role
         overwrites = order_channel.overwrites_for(everyone_role)
         
-        # Remove any deny permissions for @everyone
-        if overwrites.view_channel is False:
-            overwrites.view_channel = None
-            await order_channel.set_permissions(everyone_role, overwrite=overwrites)
+        # Set permissions for @everyone: can view and react, but cannot send messages
+        overwrites.view_channel = True
+        overwrites.send_messages = False
+        overwrites.add_reactions = True
+        await order_channel.set_permissions(everyone_role, overwrite=overwrites)
         
-        await interaction.edit_original_response(content="✅ Business is now **OPEN**! 🟢\n- All status channels renamed to 🟢-open\n- Order-here channel is now public")
+        await interaction.edit_original_response(content="✅ Business is now **OPEN**! 🟢\n- All status channels renamed to 🟢-open\n- Order-here channel is now read-only (view + react, no sending)")
         
     except discord.Forbidden:
         await interaction.edit_original_response(content="❌ I don't have permission to modify channels!")
@@ -1347,11 +1348,16 @@ async def close_business(interaction: discord.Interaction):
             await interaction.edit_original_response(content="❌ Could not find order-here channel!")
             return
         
-        # Make order-here channel private (deny @everyone view)
+        # Make order-here channel private (deny @everyone view, send, and history)
         everyone_role = interaction.guild.default_role
-        await order_channel.set_permissions(everyone_role, view_channel=False)
+        await order_channel.set_permissions(
+            everyone_role, 
+            view_channel=False,
+            send_messages=False,
+            read_message_history=False
+        )
         
-        await interaction.edit_original_response(content="✅ Business is now **CLOSED**! 🔴\n- All status channels renamed to 🔴-closed\n- Order-here channel is now private")
+        await interaction.edit_original_response(content="✅ Business is now **CLOSED**! 🔴\n- All status channels renamed to 🔴-closed\n- Order-here channel is now private (no view, send, or history)")
         
     except discord.Forbidden:
         await interaction.edit_original_response(content="❌ I don't have permission to modify channels!")
