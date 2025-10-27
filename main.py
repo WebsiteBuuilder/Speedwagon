@@ -1387,9 +1387,9 @@ async def pause_business(interaction: discord.Interaction, message: str):
         renamed_channels = []
         for channel in interaction.guild.channels:
             if "open" in channel.name.lower() or "closed" in channel.name.lower() or "pause" in channel.name.lower():
-                # Format: 🟡-pause-{message} with spaces replaced by hyphens
+                # Format: 🟡-{message} with spaces replaced by hyphens (message first for visibility)
                 safe_message = message.replace(" ", "-")
-                await channel.edit(name=f"🟡-pause-{safe_message}")
+                await channel.edit(name=f"🟡-{safe_message}")
                 renamed_channels.append(channel.name)
         
         if not renamed_channels:
