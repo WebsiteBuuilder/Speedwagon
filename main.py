@@ -400,7 +400,7 @@ def load_payment_links():
                 "cashapp": "",
                 "credit": ""
             },
-            "sb": {
+            "eli": {
                 "apple_pay": "",
                 "zelle": "",
                 "cashapp": "",
@@ -453,7 +453,7 @@ if not os.path.exists(LINKS_FILE):
             "cashapp": "",
             "credit": ""
         },
-        "sb": {
+        "eli": {
             "apple_pay": "",
             "zelle": "",
             "cashapp": "",
@@ -853,18 +853,18 @@ async def neck(interaction: discord.Interaction):
     
     await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="sb", description="Get payment method links")
-async def sb(interaction: discord.Interaction):
+@bot.tree.command(name="eli", description="Get payment method links")
+async def eli(interaction: discord.Interaction):
     # LAYER 4 DEFENSE: Individual command guard
     if is_user_barred(interaction.user.id):
         return
     
     # Load payment links
     all_links = load_payment_links()
-    links = all_links.get("sb", {})
+    links = all_links.get("eli", {})
     
     embed = discord.Embed(
-        title="💳 Payment Methods - SB",
+        title="💳 Payment Methods - Eli",
         description="Here are our accepted payment methods:",
         color=0x0099ff
     )
@@ -1126,13 +1126,13 @@ async def deletecommand(interaction: discord.Interaction, command_name: str):
 
 @bot.tree.command(name="setlink", description="Set a payment method link (Provider role only)")
 @app_commands.describe(
-    provider="Which provider to set links for (neck, sb, angie)",
+    provider="Which provider to set links for (neck, eli, angie)",
     payment_method="Which payment method to set (apple_pay, zelle, cashapp, credit)",
     url="The URL/link for this payment method"
 )
 @app_commands.choices(provider=[
     app_commands.Choice(name="Neck", value="neck"),
-    app_commands.Choice(name="SB", value="sb"),
+    app_commands.Choice(name="Eli", value="eli"),
     app_commands.Choice(name="Angie", value="angie")
 ])
 @app_commands.choices(payment_method=[
@@ -1184,7 +1184,7 @@ async def setlink(interaction: discord.Interaction, provider: str, payment_metho
     # Get display names
     provider_names = {
         "neck": "Neck",
-        "sb": "SB",
+        "eli": "Eli",
         "angie": "Angie"
     }
     method_names = {
@@ -1222,7 +1222,7 @@ async def viewlinks(interaction: discord.Interaction):
     
     provider_names = {
         "neck": "Neck",
-        "sb": "SB",
+        "eli": "Eli",
         "angie": "Angie"
     }
     method_names = {
