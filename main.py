@@ -1271,10 +1271,10 @@ async def open_business(interaction: discord.Interaction):
     await interaction.response.send_message("🔄 Opening business...", ephemeral=True)
     
     try:
-        # Find ALL channels with "open", "closed", or "pause" in the name and rename them
+        # Find ALL channels with "open", "closed", "pause" or status emoji in the name and rename them
         renamed_channels = []
         for channel in interaction.guild.channels:
-            if "open" in channel.name.lower() or "closed" in channel.name.lower() or "pause" in channel.name.lower():
+            if "open" in channel.name.lower() or "closed" in channel.name.lower() or "pause" in channel.name.lower() or "🟢" in channel.name or "🔴" in channel.name or "🟡" in channel.name:
                 await channel.edit(name="🟢-open")
                 renamed_channels.append(channel.name)
         
@@ -1326,10 +1326,10 @@ async def close_business(interaction: discord.Interaction):
     await interaction.response.send_message("🔄 Closing business...", ephemeral=True)
     
     try:
-        # Find ALL channels with "open", "closed", or "pause" in the name and rename them
+        # Find ALL channels with "open", "closed", "pause" or status emoji in the name and rename them
         renamed_channels = []
         for channel in interaction.guild.channels:
-            if "open" in channel.name.lower() or "closed" in channel.name.lower() or "pause" in channel.name.lower():
+            if "open" in channel.name.lower() or "closed" in channel.name.lower() or "pause" in channel.name.lower() or "🟢" in channel.name or "🔴" in channel.name or "🟡" in channel.name:
                 await channel.edit(name="🔴-closed")
                 renamed_channels.append(channel.name)
         
@@ -1383,10 +1383,10 @@ async def pause_business(interaction: discord.Interaction, message: str):
     await interaction.response.send_message("🔄 Pausing business...", ephemeral=True)
     
     try:
-        # Find ALL channels with "open", "closed", or "pause" in the name
+        # Find ALL channels with "open", "closed", "pause" or status emoji in the name
         renamed_channels = []
         for channel in interaction.guild.channels:
-            if "open" in channel.name.lower() or "closed" in channel.name.lower() or "pause" in channel.name.lower():
+            if "open" in channel.name.lower() or "closed" in channel.name.lower() or "pause" in channel.name.lower() or "🟢" in channel.name or "🔴" in channel.name or "🟡" in channel.name:
                 # Format: 🟡-{message} with spaces replaced by hyphens (message first for visibility)
                 safe_message = message.replace(" ", "-")
                 await channel.edit(name=f"🟡-{safe_message}")
