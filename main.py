@@ -1271,10 +1271,10 @@ async def open_business(interaction: discord.Interaction):
     await interaction.response.send_message("🔄 Opening business...", ephemeral=True)
     
     try:
-        # Find ALL channels with "open" or "closed" in the name and rename them
+        # Find ALL channels with "open", "closed", or "pause" in the name and rename them
         renamed_channels = []
         for channel in interaction.guild.channels:
-            if "open" in channel.name.lower() or "closed" in channel.name.lower():
+            if "open" in channel.name.lower() or "closed" in channel.name.lower() or "pause" in channel.name.lower():
                 await channel.edit(name="🟢-open")
                 renamed_channels.append(channel.name)
         
@@ -1326,10 +1326,10 @@ async def close_business(interaction: discord.Interaction):
     await interaction.response.send_message("🔄 Closing business...", ephemeral=True)
     
     try:
-        # Find ALL channels with "open" or "closed" in the name and rename them
+        # Find ALL channels with "open", "closed", or "pause" in the name and rename them
         renamed_channels = []
         for channel in interaction.guild.channels:
-            if "open" in channel.name.lower() or "closed" in channel.name.lower():
+            if "open" in channel.name.lower() or "closed" in channel.name.lower() or "pause" in channel.name.lower():
                 await channel.edit(name="🔴-closed")
                 renamed_channels.append(channel.name)
         
@@ -1358,6 +1358,67 @@ async def close_business(interaction: discord.Interaction):
         )
         
         await interaction.edit_original_response(content="✅ Business is now **CLOSED**! 🔴\n- All status channels renamed to 🔴-closed\n- Order-here channel is now private (no view, send, or history)")
+        
+    except discord.Forbidden:
+        await interaction.edit_original_response(content="❌ I don't have permission to modify channels!")
+    except Exception as e:
+        await interaction.edit_original_response(content=f"❌ Error: {str(e)}")
+
+@bot.tree.command(name="pause", description="Pause the business with a custom message (Provider role only)")
+@app_commands.describe(
+    message="Custom message to display (e.g., 'will be open in 10')"
+)
+async def pause_business(interaction: discord.Interaction, message: str):
+    if is_user_barred(interaction.user.id):
+        await interaction.response.send_message("❌ You are barred from using this command!", ephemeral=True)
+        return
+
+    # Check if user has Provider role
+    provider_role = discord.utils.get(interaction.guild.roles, name="Provider")
+    if not provider_role or provider_role not in interaction.user.roles:
+        await interaction.response.send_message("❌ You need the Provider role to use this command!", ephemeral=True)
+        return
+    
+    # Respond immediately to prevent timeout
+    await interaction.response.send_message("🔄 Pausing business...", ephemeral=True)
+    
+    try:
+        # Find ALL channels with "open", "closed", or "pause" in the name
+        renamed_channels = []
+        for channel in interaction.guild.channels:
+            if "open" in channel.name.lower() or "closed" in channel.name.lower() or "pause" in channel.name.lower():
+                # Format: 🟡-pause-{message} with spaces replaced by hyphens
+                safe_message = message.replace(" ", "-")
+                await channel.edit(name=f"🟡-pause-{safe_message}")
+                renamed_channels.append(channel.name)
+        
+        if not renamed_channels:
+            await interaction.edit_original_response(content="❌ Could not find any status channels!")
+            return
+        
+        # Find the order-here channel and set same permissions as /close
+        order_channel = None
+        for channel in interaction.guild.channels:
+            if "order-here" in channel.name.lower():
+                order_channel = channel
+                break
+        
+        if not order_channel:
+            await interaction.edit_original_response(content="❌ Could not find order-here channel!")
+            return
+        
+        # Make order-here channel private (same as /close)
+        everyone_role = interaction.guild.default_role
+        await order_channel.set_permissions(
+            everyone_role, 
+            view_channel=False,
+            send_messages=False,
+            read_message_history=False
+        )
+        
+        await interaction.edit_original_response(
+            content=f"✅ Business is now **PAUSED**! 🟡\n- Status: {message}\n- All status channels updated\n- Order-here channel is now private"
+        )
         
     except discord.Forbidden:
         await interaction.edit_original_response(content="❌ I don't have permission to modify channels!")
