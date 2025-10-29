@@ -5,8 +5,6 @@ import json
 import shutil
 import re
 import os
-import random
-from itertools import product
 from dotenv import load_dotenv
 import threading
 import socketserver
@@ -55,67 +53,22 @@ DEFAULT_BARRED_USERS: tuple[str, ...] = (
     "1405894979095892108",
 )
 
-# Built-in segments for the /enjoy command so we can generate a much wider
-# variety of GUHDeats shoutouts while keeping things meme-ready.
-_ENJOY_OPENERS = [
-    "✅ STILL GUHHD, (user)! Your GUHDeats haul just landed 🍽️",
-    "🚀 Delivery locked, (user)! GUHDeats zoomed in like a meme rocket 🚚",
-    "🔥 GUHDeats drop complete, (user)! Feast powers unlocked 🍔",
-    "🎉 (user), the GUHDeats gods have blessed your plate 🎁",
-    "🍔 Big GUH energy, (user)! Your order is screaming GUHHD vibes 🤘",
-    "🥤 Slurp squad status achieved, (user)! GUHDeats came through 💦",
-    "🛎️ Service bell rang, (user)! GUHDeats rolled up VIP-style 🛞",
-    "🎯 Target acquired, (user)! GUHDeats locked onto your cravings 🎮",
-    "🌟 Spotlight’s on you, (user)! GUHDeats served a showstopper ✨",
-    "💥 BOOM, (user)! Another GUHDeats victory royale dropped 🏆",
-]
-
-_ENJOY_HYPE = [
-    "You’re STILL GUHHD for rocking with the GUHDeats fam 💪",
-    "Certified GUHHD legend alert—you keep GUHDeats trending 📈",
-    "Thanks for eating GUHHD and keeping the kitchen memes alive 😂",
-    "Another bite, another GUHHD story—stay tasty, friend 😎",
-    "Your appetite is built different—pure GUHHD energy ⚡",
-    "The timeline agrees: (user) + GUHDeats = unstoppable combo 🔥",
-    "Your snack game is viral-tier, keep flexing that GUHHD aura 📸",
-    "Stay seated, chef—YOU are the GUHDeats experience 🍽️",
-]
-
-_ENJOY_REMINDERS = [
-    "Drop a vouch in #vouch to stack GUH points like rare loot 🎟️",
-    "Slide into #vouch and brag—points lead to free GUH munchies 💰",
-    "Post that #vouch receipt; freebies and flex badges await 🏅",
-    "Share the GUHHD news in #vouch and charge up your rewards ⚡",
-    "Screenshot the feast in #vouch—points rain harder than jackpots 🎲",
-    "Hit #vouch with a humble brag, then raid #casino for the bonus 🃏",
-    "Pin a quick #vouch to level up rewards before #casino spins 🎡",
-    "Spam #vouch with love; it feeds the free-order machine 🧡",
-]
-
-_ENJOY_CLOSERS = [
-    "When you’re ready, #casino is open—let the GUH luck ride 🎰",
-    "Line up those #casino spins and double down on GUHHD vibes 🎡",
-    "See you in #casino after dessert—jackpots taste better GUHHD 💎",
-    "Then flex in #casino; we’re cheering for your GUHHD win 🥇",
-    "Catch us shouting GUHHD energy over in #casino tonight 📣",
-    "Wrap it with a victory lap in #casino—GUHHD luck included 🍀",
-    "Thanks for choosing GUHDeats—now go paint #casino GUHHD 🎨",
-    "Appreciate you fueling with GUHDeats—#casino raids await ⚔️",
-]
-
-
-def _build_default_enjoy_messages(limit: int = 256) -> list[str]:
-    combos = [
-        f"{opener} {hype} {reminder} {closer}"
-        for opener, hype, reminder, closer in product(
-            _ENJOY_OPENERS, _ENJOY_HYPE, _ENJOY_REMINDERS, _ENJOY_CLOSERS
-        )
+# Curated, personal-feeling shoutouts for /enjoy.
+def _build_default_enjoy_messages() -> list[str]:
+    return [
+        "🤠 (user), West salutes you—GUHDeats pulled through and your vouch points just climbed. Drop the receipt in #vouch then slide by #casino.",
+        "🔥 Appreciate you, (user). GUHDeats delivery landed perfect; more vouch points on your tab. Flex it in #vouch and come chill in #casino.",
+        "💼 West checked—(user) stays loyal to GUHDeats. Bank those vouch points with a quick #vouch and let’s run #casino.",
+        "🍽️ Big thanks, (user). GUHDeats order’s tight, vouch points tighter. Tag it in #vouch and ride the luck in #casino.",
+        "🌆 West sees you, (user)—another GUHDeats win and extra vouch points. Give the nod in #vouch before you touch #casino.",
+        "🎯 Nailed it, (user). GUHDeats came fast, vouch points came faster. Post up in #vouch then meet me in #casino.",
+        "🚚 GUHDeats delivery locked, (user). Your vouch points balance just loved that. Flash proof in #vouch and roll into #casino.",
+        "🧾 Respect, (user). GUHDeats receipt’s clean, stack of vouch points cleaner. Drop it in #vouch and run it up in #casino.",
+        "🏆 (user), West keeps score—your GUHDeats loyalty is top tier. Secure the vouch points in #vouch and chase one more in #casino.",
+        "🎲 Appreciate the trust, (user). GUHDeats kept it on time and vouch points bumped. Share it in #vouch and keep the streak in #casino.",
+        "💥 Another smooth pull, (user). GUHDeats hit and so did your vouch points. Mark it in #vouch, then let’s spin #casino.",
+        "📸 Snap that GUHDeats win, (user). West sees fresh vouch points waiting. Toss it into #vouch and catch the afterparty in #casino.",
     ]
-    rng = random.Random(1337)
-    rng.shuffle(combos)
-    if limit and len(combos) > limit:
-        combos = combos[:limit]
-    return combos
 
 
 DEFAULT_ENJOY_MESSAGES = _build_default_enjoy_messages()
@@ -201,6 +154,8 @@ def _needs_enjoy_update(data: dict) -> bool:
             return True
         lower_messages = [message.lower() for message in messages]
         if not any("guhdeats" in message for message in lower_messages):
+            return True
+        if not any("vouch points" in message for message in lower_messages):
             return True
         if not any("#vouch" in message for message in lower_messages):
             return True
